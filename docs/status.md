@@ -15,7 +15,7 @@ Phase 7: 포트폴리오 정리/배포 준비
 
 ## 2. 현재 상태 요약
 
-현재는 **Phase 1 완료, Phase 2 초입 구현 완료** 상태다.
+현재는 **Phase 1 완료, Phase 2 주요 흐름 구현 완료** 상태다.
 
 ```text
 완료:
@@ -30,12 +30,15 @@ Phase 7: 포트폴리오 정리/배포 준비
 - 온보딩 입력 화면
 - 대시보드 첫 화면
 - Docker Compose 초안
+- 온보딩 저장 후 대시보드 이동
+- 초기 역량 점수 추정
+- 역량 점수 수정 API
+- 역량 점수 수정 화면
 
 진행 중:
-- 온보딩 저장 -> 직무 트랙/역량 축 생성 -> 대시보드 표시 흐름
+- 온보딩/진단/트랙 흐름의 실제 DB 연동 검증
 
 아직 미구현:
-- 역량 점수 수정 UI
 - 로드맵 CRUD
 - 주간 계획 CRUD
 - 일일 체크인
@@ -111,13 +114,14 @@ Docker Desktop이 실행 중이 아니어서 전체 docker compose up 검증은 
 
 ### Phase 2: 온보딩/진단/트랙
 
-상태: 일부 구현
+상태: 주요 흐름 구현, 실제 DB 연동 검증 필요
 
 구현됨:
 
 ```text
 POST /api/onboarding
 GET /api/dashboard
+PATCH /api/scores/{score_id}
 OnboardingProfile 모델
 User 모델
 CareerTrack 모델
@@ -125,6 +129,8 @@ CompetencyAxis 모델
 TrackCompetencyScore 모델
 온보딩 화면
 대시보드 요약 화면
+역량 점수 수정 화면
+온보딩 기반 초기 점수 추정
 ```
 
 현재 동작 목표:
@@ -135,16 +141,16 @@ TrackCompetencyScore 모델
 10개 역량 축을 생성한다.
 트랙별 초기 점수를 생성한다.
 대시보드에서 목표 트랙과 부족 역량 Top 3를 표시한다.
+사용자가 역량별 현재 점수, 목표 점수, 증거 메모를 수정한다.
 ```
 
 남은 작업:
 
 ```text
-역량 점수 직접 수정 UI
-증거/evidence 입력
 트랙 우선순위 수정
-초기 점수 자동 추정 로직
-온보딩 완료 후 대시보드 이동
+초기 점수 추정 로직 고도화
+실제 PostgreSQL 환경에서 온보딩 저장 검증
+실제 PostgreSQL 환경에서 점수 수정 검증
 ```
 
 ### Phase 3: 로드맵/주간 계획
@@ -232,9 +238,9 @@ AWS EC2 또는 Lightsail 배포 검토
 ```text
 1. Docker Desktop 실행 후 docker compose up 검증
 2. 온보딩 저장 실제 동작 확인
-3. 온보딩 완료 후 대시보드 이동
-4. 역량 점수 수정 UI 추가
-5. 초기 점수 자동 추정 로직 추가
+3. 역량 점수 수정 실제 동작 확인
+4. 트랙 우선순위 수정 UI 추가
+5. 로드맵 CRUD 구현 시작
 ```
 
 ## 5. 갱신 규칙

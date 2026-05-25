@@ -2,6 +2,9 @@ from pydantic import BaseModel
 
 
 class AxisScore(BaseModel):
+    id: int
+    track_id: int
+    axis_id: int
     axis: str
     score: float
     target_score: float
@@ -21,3 +24,9 @@ class DashboardSummary(BaseModel):
     target_track: str | None
     readiness: list[TrackReadiness]
     weakest_axes: list[AxisScore]
+
+
+class ScoreUpdate(BaseModel):
+    score: float
+    target_score: float | None = None
+    evidence: str | None = None

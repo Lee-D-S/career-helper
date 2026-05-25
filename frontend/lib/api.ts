@@ -1,6 +1,9 @@
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000/api";
 
 export type AxisScore = {
+  id: number;
+  track_id: number;
+  axis_id: number;
   axis: string;
   score: number;
   target_score: number;
@@ -39,6 +42,23 @@ export async function submitOnboarding(payload: unknown) {
 
   if (!response.ok) {
     throw new Error("온보딩 저장에 실패했습니다.");
+  }
+
+  return response.json();
+}
+
+export async function updateScore(
+  scoreId: number,
+  payload: { score: number; target_score?: number; evidence?: string | null }
+): Promise<AxisScore> {
+  const response = await fetch(`${API_BASE_URL}/scores/${scoreId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+
+  if (!response.ok) {
+    throw new Error("역량 점수 저장에 실패했습니다.");
   }
 
   return response.json();

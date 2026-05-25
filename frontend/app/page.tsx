@@ -1,4 +1,5 @@
 import { AlertCircle, CalendarDays, ClipboardCheck, Target } from "lucide-react";
+import Link from "next/link";
 
 import { getDashboard } from "@/lib/api";
 
@@ -33,7 +34,14 @@ export default async function Home() {
             <p className="text-sm font-medium text-muted-foreground">취업준비 도우미</p>
             <h1 className="mt-1 text-3xl font-semibold tracking-normal">이번 주 실행 계획</h1>
           </div>
-          <div className="text-sm text-muted-foreground">지원 시작 목표: 2026년 9월</div>
+          <div className="flex gap-2">
+            <Link className="rounded-md bg-muted px-3 py-2 text-sm font-medium" href="/onboarding">
+              온보딩
+            </Link>
+            <Link className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground" href="/readiness">
+              역량 점수
+            </Link>
+          </div>
         </header>
 
         {error ? (

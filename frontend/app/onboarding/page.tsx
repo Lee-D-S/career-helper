@@ -1,12 +1,14 @@
 "use client";
 
 import type { FormEvent, InputHTMLAttributes, TextareaHTMLAttributes } from "react";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { submitOnboarding } from "@/lib/api";
 
 export default function OnboardingPage() {
+  const router = useRouter();
   const [status, setStatus] = useState<string | null>(null);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -43,6 +45,8 @@ export default function OnboardingPage() {
     try {
       await submitOnboarding(payload);
       setStatus("온보딩을 저장했습니다. 대시보드로 돌아가 준비도를 확인하세요.");
+      router.push("/");
+      router.refresh();
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "온보딩 저장에 실패했습니다.");
     }
