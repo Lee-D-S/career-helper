@@ -79,13 +79,18 @@ export default function AiSuggestionsPage() {
                 <div className="flex items-center gap-2">
                   <span className="text-sm text-muted-foreground">{plan.decision_status}</span>
                   <Button onClick={() => decide(plan.id, "accepted")} type="button">
-                    승인
+                    승인/반영
                   </Button>
                   <Button onClick={() => decide(plan.id, "rejected")} type="button" variant="secondary">
                     거절
                   </Button>
                 </div>
               </div>
+              {plan.applied_resource_type && plan.applied_resource_id ? (
+                <div className="border-b px-5 py-3 text-sm text-muted-foreground">
+                  반영됨: {plan.applied_resource_type} #{plan.applied_resource_id}
+                </div>
+              ) : null}
               <pre className="overflow-auto p-5 text-sm text-muted-foreground">
                 {JSON.stringify(plan.parsed_json, null, 2)}
               </pre>

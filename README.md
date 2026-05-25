@@ -52,3 +52,4 @@ rtk docker compose up --build
 7. `/check-in`에서 일일 투입 시간, 완료한 작업, 막힌 점을 기록한다.
 8. `/weekly-review`에서 주간 계획의 실행률과 다음 주 조정 내용을 기록한다.
 9. `/ai-suggestions`에서 MockProvider 기반 AI 제안을 만들고 승인/거절한다.
+10. 승인한 로드맵/주간 계획 제안은 실제 로드맵/주간 계획 데이터로 반영된다.

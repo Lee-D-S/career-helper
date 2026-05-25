@@ -1,3 +1,5 @@
+from datetime import date, timedelta
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -100,6 +102,7 @@ def _weekly_review_read(review: WeeklyReview) -> WeeklyReviewRead:
 
 
 def _ai_plan_read(plan: AiPlan) -> AiPlanRead:
+    parsed_json = plan.parsed_json or {}
     return AiPlanRead(
         id=plan.id,
         plan_type=plan.plan_type,
@@ -108,6 +111,8 @@ def _ai_plan_read(plan: AiPlan) -> AiPlanRead:
         user_explanation=plan.user_explanation,
         validation_status=plan.validation_status,
         decision_status=plan.decision_status,
+        applied_resource_type=parsed_json.get("applied_resource_type") if isinstance(parsed_json, dict) else None,
+        applied_resource_id=parsed_json.get("applied_resource_id") if isinstance(parsed_json, dict) else None,
         created_at=plan.created_at,
     )
 
@@ -119,6 +124,93 @@ async def _calculate_completion_rate(db: AsyncSession, weekly_plan_id: int) -> f
         return 0
     done_count = sum(1 for task in tasks if task.status == "done")
     return round(done_count / len(tasks) * 100, 1)
+
+
+async def _default_track_id(db: AsyncSession, user_id: int) -> int | None:
+    result = await db.execute(select(CareerTrack).where(CareerTrack.user_id == user_id).order_by(CareerTrack.priority))
+    track = result.scalars().first()
+    return track.id if track else None
+
+
+async def _apply_ai_plan(db: AsyncSession, plan: AiPlan) -> tuple[str | None, int | None]:
+    if not isinstance(plan.parsed_json, dict):
+        raise HTTPException(status_code=400, detail="AI plan has no parsed JSON")
+    if plan.parsed_json.get("applied_resource_id"):
+        return plan.parsed_json.get("applied_resource_type"), plan.parsed_json.get("applied_resource_id")
+
+    today = date.today()
+    track_id = await _default_track_id(db, plan.user_id)
+
+    if plan.plan_type == "roadmap":
+        roadmap = Roadmap(
+            user_id=plan.user_id,
+            track_id=track_id,
+            title=str(plan.parsed_json.get("monthly_goal") or "AI 로드맵 제안"),
+            start_date=today,
+            end_date=today + timedelta(days=30),
+            status="active",
+            ai_plan_id=plan.id,
+        )
+        db.add(roadmap)
+        await db.flush()
+
+        for index, item in enumerate(plan.parsed_json.get("items", []), start=1):
+            if not isinstance(item, dict):
+                continue
+            db.add(
+                RoadmapItem(
+                    roadmap_id=roadmap.id,
+                    title=str(item.get("title") or f"로드맵 항목 {index}"),
+                    description=item.get("reason"),
+                    priority=int(item.get("priority") or index),
+                    status="todo",
+                )
+            )
+
+        plan.parsed_json = {
+            **plan.parsed_json,
+            "applied_resource_type": "roadmap",
+            "applied_resource_id": roadmap.id,
+        }
+        return "roadmap", roadmap.id
+
+    if plan.plan_type == "weekly_plan":
+        week_start = today - timedelta(days=today.weekday())
+        week_end = week_start + timedelta(days=6)
+        weekly_plan = WeeklyPlan(
+            user_id=plan.user_id,
+            track_id=track_id,
+            week_start=week_start,
+            week_end=week_end,
+            title=str(plan.parsed_json.get("weekly_goal") or "AI 주간 계획 제안"),
+            status="active",
+            ai_plan_id=plan.id,
+        )
+        db.add(weekly_plan)
+        await db.flush()
+
+        for task_payload in plan.parsed_json.get("tasks", []):
+            if not isinstance(task_payload, dict):
+                continue
+            db.add(
+                Task(
+                    weekly_plan_id=weekly_plan.id,
+                    title=str(task_payload.get("title") or "작업"),
+                    category=str(task_payload.get("category") or "general"),
+                    description=task_payload.get("reason"),
+                    estimated_hours=task_payload.get("estimated_hours"),
+                    status="todo",
+                )
+            )
+
+        plan.parsed_json = {
+            **plan.parsed_json,
+            "applied_resource_type": "weekly_plan",
+            "applied_resource_id": weekly_plan.id,
+        }
+        return "weekly_plan", weekly_plan.id
+
+    return None, None
 
 
 @router.get("/health")
@@ -470,6 +562,8 @@ async def update_ai_plan_decision(
         raise HTTPException(status_code=404, detail="AI plan not found")
 
     plan.decision_status = payload.decision_status
+    if payload.decision_status == "accepted":
+        await _apply_ai_plan(db, plan)
     await db.commit()
     await db.refresh(plan)
     return _ai_plan_read(plan)

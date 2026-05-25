@@ -20,4 +20,6 @@ class AiPlanRead(BaseModel):
     user_explanation: str | None
     validation_status: str
     decision_status: str
+    applied_resource_type: str | None = None
+    applied_resource_id: int | None = None
     created_at: datetime

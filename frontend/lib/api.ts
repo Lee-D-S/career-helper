@@ -95,6 +95,8 @@ export type AiPlan = {
   user_explanation?: string | null;
   validation_status: string;
   decision_status: string;
+  applied_resource_type?: string | null;
+  applied_resource_id?: number | null;
   created_at: string;
 };
 
