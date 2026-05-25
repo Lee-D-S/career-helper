@@ -15,7 +15,7 @@ Phase 7: 포트폴리오 정리/배포 준비
 
 ## 2. 현재 상태 요약
 
-현재는 **Phase 1 완료, Phase 2 주요 흐름 구현 완료, Phase 3 초입 구현 완료, Phase 4 초입 구현 완료, Phase 5 초입 구현 완료, Phase 6 초입 구현 완료** 상태다.
+현재는 **Phase 1 완료, Phase 2 주요 흐름 구현 완료, Phase 3 초입 구현 완료, Phase 4 초입 구현 완료, Phase 5 초입 구현 완료, Phase 6 주요 흐름 구현 완료** 상태다.
 
 ```text
 완료:
@@ -54,14 +54,16 @@ Phase 7: 포트폴리오 정리/배포 준비
 - 공고 저장/조회 API
 - MockProvider 기반 공고 분석 API
 - 공고 저장/분석 화면
+- 캘린더 일정 생성/조회 API
+- 작업/공고 마감일 캘린더 동기화 API
+- `.ics` 내보내기 API
+- 캘린더 화면
 
 진행 중:
-- 온보딩/진단/트랙/로드맵/주간 계획/체크인/회고/AI 제안/공고 흐름의 실제 DB 연동 검증
+- 온보딩/진단/트랙/로드맵/주간 계획/체크인/회고/AI 제안/공고/캘린더 흐름의 실제 DB 연동 검증
 
 아직 미구현:
 - Gemini Provider
-- 내부 캘린더
-- .ics 내보내기
 ```
 
 ## 3. Phase별 상세 상태
@@ -254,7 +256,7 @@ AI 실패 시 수동 fallback
 
 ### Phase 6: 공고/캘린더
 
-상태: 일부 구현
+상태: 주요 흐름 구현, 실제 DB 연동 검증 필요
 
 구현됨:
 
@@ -265,6 +267,13 @@ POST /api/job-postings/{job_id}/analyze
 공고 URL/본문 저장
 MockProvider 기반 공고 요약/분류
 공고 저장/분석 화면
+GET /api/calendar-events
+POST /api/calendar-events
+POST /api/calendar-events/sync
+GET /api/calendar-events.ics
+수동 일정 생성/조회 화면
+작업 due_date와 공고 deadline 캘린더 동기화
+.ics 내보내기
 ```
 
 남은 작업:
@@ -273,9 +282,8 @@ MockProvider 기반 공고 요약/분류
 공고 수정/삭제
 공고 상태 변경
 실제 Gemini 기반 공고 분석
-CalendarEvent CRUD
-내부 캘린더 화면
-.ics 내보내기
+캘린더 일정 수정/삭제
+월간/주간 캘린더 그리드 UI
 ```
 
 ### Phase 7: 포트폴리오 정리/배포 준비
@@ -306,7 +314,8 @@ AWS EC2 또는 Lightsail 배포 검토
 5. 일일 체크인/주간 회고 실제 동작 확인
 6. AI 제안 생성/승인/거절/실제 데이터 반영 확인
 7. 공고 저장/분석 실제 동작 확인
-8. 내부 캘린더 구현
+8. 캘린더 동기화와 .ics 내보내기 실제 동작 확인
+9. GeminiProvider 구현
 ```
 
 ## 5. 갱신 규칙

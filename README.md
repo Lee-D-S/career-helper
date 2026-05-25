@@ -54,3 +54,4 @@ rtk docker compose up --build
 9. `/ai-suggestions`에서 MockProvider 기반 AI 제안을 만들고 승인/거절한다.
 10. 승인한 로드맵/주간 계획 제안은 실제 로드맵/주간 계획 데이터로 반영된다.
 11. `/job-postings`에서 공고 URL/본문을 저장하고 MockProvider로 요구 역량과 준비 액션을 분석한다.
+12. `/calendar`에서 일정을 만들고 작업/공고 마감일을 동기화한 뒤 `.ics`로 내보낸다.

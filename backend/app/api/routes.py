@@ -1,17 +1,19 @@
-from datetime import date, timedelta
+from datetime import date, datetime, time, timedelta
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
 from app.db.session import get_db
 from app.models.ai_plan import AiPlan
+from app.models.calendar import CalendarEvent
 from app.models.career import CareerTrack, CompetencyAxis, TrackCompetencyScore
 from app.models.checkin import DailyCheckIn, WeeklyReview
 from app.models.job import JobPosting
 from app.models.plan import Roadmap, RoadmapItem, Task, WeeklyPlan
 from app.schemas.ai import AiPlanDecisionUpdate, AiPlanRead, AiSuggestionCreate
+from app.schemas.calendar import CalendarEventCreate, CalendarEventRead
 from app.schemas.checkins import DailyCheckInCreate, DailyCheckInRead, WeeklyReviewCreate, WeeklyReviewRead
 from app.schemas.dashboard import AxisScore, DashboardSummary, ScoreUpdate, TrackReadiness
 from app.schemas.jobs import JobPostingCreate, JobPostingRead
@@ -117,6 +119,27 @@ def _job_posting_read(job: JobPosting) -> JobPostingRead:
         required_skills=job.required_skills or [],
         recommended_actions=job.recommended_actions or [],
     )
+
+
+def _calendar_event_read(event: CalendarEvent) -> CalendarEventRead:
+    return CalendarEventRead(
+        id=event.id,
+        title=event.title,
+        description=event.description,
+        start_at=event.start_at,
+        end_at=event.end_at,
+        event_type=event.event_type,
+        source_type=event.source_type,
+        source_id=event.source_id,
+    )
+
+
+def _ics_escape(value: str) -> str:
+    return value.replace("\\", "\\\\").replace(",", "\\,").replace(";", "\\;").replace("\n", "\\n")
+
+
+def _ics_datetime(value) -> str:
+    return value.strftime("%Y%m%dT%H%M%S")
 
 
 def _ai_plan_read(plan: AiPlan) -> AiPlanRead:
@@ -612,6 +635,127 @@ async def analyze_job_posting(job_id: int, db: AsyncSession = Depends(get_db)) -
     await db.commit()
     await db.refresh(job)
     return _job_posting_read(job)
+
+
+@router.get("/calendar-events", response_model=list[CalendarEventRead])
+async def list_calendar_events(db: AsyncSession = Depends(get_db)) -> list[CalendarEventRead]:
+    user_id = get_settings().default_user_id
+    result = await db.execute(
+        select(CalendarEvent).where(CalendarEvent.user_id == user_id).order_by(CalendarEvent.start_at, CalendarEvent.id)
+    )
+    return [_calendar_event_read(event) for event in result.scalars()]
+
+
+@router.post("/calendar-events", response_model=CalendarEventRead)
+async def create_calendar_event(payload: CalendarEventCreate, db: AsyncSession = Depends(get_db)) -> CalendarEventRead:
+    user_id = get_settings().default_user_id
+    event = CalendarEvent(
+        user_id=user_id,
+        title=payload.title,
+        description=payload.description,
+        start_at=payload.start_at,
+        end_at=payload.end_at,
+        event_type=payload.event_type,
+        source_type=payload.source_type,
+        source_id=payload.source_id,
+    )
+    db.add(event)
+    await db.commit()
+    await db.refresh(event)
+    return _calendar_event_read(event)
+
+
+@router.post("/calendar-events/sync", response_model=list[CalendarEventRead])
+async def sync_calendar_events(db: AsyncSession = Depends(get_db)) -> list[CalendarEventRead]:
+    user_id = get_settings().default_user_id
+    created: list[CalendarEvent] = []
+
+    tasks_result = await db.execute(
+        select(Task, WeeklyPlan)
+        .join(WeeklyPlan, WeeklyPlan.id == Task.weekly_plan_id)
+        .where(WeeklyPlan.user_id == user_id, Task.due_date.is_not(None))
+    )
+    for task, plan in tasks_result:
+        existing = await db.scalar(
+            select(CalendarEvent).where(
+                CalendarEvent.user_id == user_id,
+                CalendarEvent.source_type == "task",
+                CalendarEvent.source_id == task.id,
+            )
+        )
+        if existing is not None:
+            continue
+        event = CalendarEvent(
+            user_id=user_id,
+            title=task.title,
+            description=task.reason or task.description,
+            start_at=datetime.combine(task.due_date, time(hour=9)),
+            end_at=None,
+            event_type="task",
+            source_type="task",
+            source_id=task.id,
+        )
+        db.add(event)
+        created.append(event)
+
+    jobs_result = await db.execute(select(JobPosting).where(JobPosting.user_id == user_id, JobPosting.deadline.is_not(None)))
+    for job in jobs_result.scalars():
+        existing = await db.scalar(
+            select(CalendarEvent).where(
+                CalendarEvent.user_id == user_id,
+                CalendarEvent.source_type == "job_posting",
+                CalendarEvent.source_id == job.id,
+            )
+        )
+        if existing is not None:
+            continue
+        title = f"{job.company_name or '공고'} 마감"
+        event = CalendarEvent(
+            user_id=user_id,
+            title=title,
+            description=job.position_title,
+            start_at=datetime.combine(job.deadline, time(hour=9)),
+            end_at=None,
+            event_type="job_deadline",
+            source_type="job_posting",
+            source_id=job.id,
+        )
+        db.add(event)
+        created.append(event)
+
+    await db.commit()
+    for event in created:
+        await db.refresh(event)
+    return [_calendar_event_read(event) for event in created]
+
+
+@router.get("/calendar-events.ics")
+async def export_calendar_events(db: AsyncSession = Depends(get_db)) -> Response:
+    user_id = get_settings().default_user_id
+    result = await db.execute(
+        select(CalendarEvent).where(CalendarEvent.user_id == user_id).order_by(CalendarEvent.start_at, CalendarEvent.id)
+    )
+    lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Career Helper//KO"]
+    for event in result.scalars():
+        end_at = event.end_at or event.start_at
+        lines.extend(
+            [
+                "BEGIN:VEVENT",
+                f"UID:career-helper-{event.id}@local",
+                f"DTSTAMP:{_ics_datetime(event.created_at)}",
+                f"DTSTART:{_ics_datetime(event.start_at)}",
+                f"DTEND:{_ics_datetime(end_at)}",
+                f"SUMMARY:{_ics_escape(event.title)}",
+                f"DESCRIPTION:{_ics_escape(event.description or '')}",
+                "END:VEVENT",
+            ]
+        )
+    lines.append("END:VCALENDAR")
+    return Response(
+        "\r\n".join(lines),
+        media_type="text/calendar",
+        headers={"Content-Disposition": 'attachment; filename="career-helper-calendar.ics"'},
+    )
 
 
 @router.patch("/ai-plans/{plan_id}", response_model=AiPlanRead)

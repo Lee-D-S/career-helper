@@ -114,6 +114,17 @@ export type JobPosting = {
   recommended_actions: string[];
 };
 
+export type CalendarEvent = {
+  id: number;
+  title: string;
+  description?: string | null;
+  start_at: string;
+  end_at?: string | null;
+  event_type: string;
+  source_type?: string | null;
+  source_id?: number | null;
+};
+
 export async function getDashboard(): Promise<DashboardSummary> {
   const response = await fetch(`${API_BASE_URL}/dashboard`, { cache: "no-store" });
   if (!response.ok) {
@@ -305,4 +316,38 @@ export async function analyzeJobPosting(jobId: number): Promise<JobPosting> {
     throw new Error("공고 분석에 실패했습니다.");
   }
   return response.json();
+}
+
+export async function getCalendarEvents(): Promise<CalendarEvent[]> {
+  const response = await fetch(`${API_BASE_URL}/calendar-events`, { cache: "no-store" });
+  if (!response.ok) {
+    throw new Error("캘린더 일정을 불러오지 못했습니다.");
+  }
+  return response.json();
+}
+
+export async function createCalendarEvent(payload: unknown): Promise<CalendarEvent> {
+  const response = await fetch(`${API_BASE_URL}/calendar-events`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  if (!response.ok) {
+    throw new Error("캘린더 일정 저장에 실패했습니다.");
+  }
+  return response.json();
+}
+
+export async function syncCalendarEvents(): Promise<CalendarEvent[]> {
+  const response = await fetch(`${API_BASE_URL}/calendar-events/sync`, {
+    method: "POST"
+  });
+  if (!response.ok) {
+    throw new Error("캘린더 동기화에 실패했습니다.");
+  }
+  return response.json();
+}
+
+export function calendarIcsUrl() {
+  return `${API_BASE_URL}/calendar-events.ics`;
 }

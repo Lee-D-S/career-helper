@@ -261,6 +261,15 @@ MockProvider 기반 요구 역량/추천 액션 분석
 .ics 내보내기
 ```
 
+MVP 구현 상태:
+
+```text
+수동 일정 생성
+일정 목록 조회
+작업 due_date와 공고 deadline 동기화
+.ics 내보내기
+```
+
 ### Settings
 
 MVP에서는 최소 설정만 둔다.
