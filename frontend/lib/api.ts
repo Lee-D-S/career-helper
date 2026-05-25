@@ -100,6 +100,20 @@ export type AiPlan = {
   created_at: string;
 };
 
+export type JobPosting = {
+  id: number;
+  company_name?: string | null;
+  position_title?: string | null;
+  source_url?: string | null;
+  raw_content?: string | null;
+  deadline?: string | null;
+  status: string;
+  fit_score?: number | null;
+  summary?: string | null;
+  required_skills: string[];
+  recommended_actions: string[];
+};
+
 export async function getDashboard(): Promise<DashboardSummary> {
   const response = await fetch(`${API_BASE_URL}/dashboard`, { cache: "no-store" });
   if (!response.ok) {
@@ -259,6 +273,36 @@ export async function updateAiPlanDecision(planId: number, decisionStatus: strin
   });
   if (!response.ok) {
     throw new Error("AI 제안 상태 저장에 실패했습니다.");
+  }
+  return response.json();
+}
+
+export async function getJobPostings(): Promise<JobPosting[]> {
+  const response = await fetch(`${API_BASE_URL}/job-postings`, { cache: "no-store" });
+  if (!response.ok) {
+    throw new Error("공고를 불러오지 못했습니다.");
+  }
+  return response.json();
+}
+
+export async function createJobPosting(payload: unknown): Promise<JobPosting> {
+  const response = await fetch(`${API_BASE_URL}/job-postings`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  if (!response.ok) {
+    throw new Error("공고 저장에 실패했습니다.");
+  }
+  return response.json();
+}
+
+export async function analyzeJobPosting(jobId: number): Promise<JobPosting> {
+  const response = await fetch(`${API_BASE_URL}/job-postings/${jobId}/analyze`, {
+    method: "POST"
+  });
+  if (!response.ok) {
+    throw new Error("공고 분석에 실패했습니다.");
   }
   return response.json();
 }

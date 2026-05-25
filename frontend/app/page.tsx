@@ -77,6 +77,9 @@ export default async function Home() {
             <Link className="rounded-md bg-muted px-3 py-2 text-sm font-medium" href="/ai-suggestions">
               AI 제안
             </Link>
+            <Link className="rounded-md bg-muted px-3 py-2 text-sm font-medium" href="/job-postings">
+              공고
+            </Link>
             <Link className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground" href="/readiness">
               역량 점수
             </Link>

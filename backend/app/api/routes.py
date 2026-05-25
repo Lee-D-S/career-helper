@@ -9,10 +9,12 @@ from app.db.session import get_db
 from app.models.ai_plan import AiPlan
 from app.models.career import CareerTrack, CompetencyAxis, TrackCompetencyScore
 from app.models.checkin import DailyCheckIn, WeeklyReview
+from app.models.job import JobPosting
 from app.models.plan import Roadmap, RoadmapItem, Task, WeeklyPlan
 from app.schemas.ai import AiPlanDecisionUpdate, AiPlanRead, AiSuggestionCreate
 from app.schemas.checkins import DailyCheckInCreate, DailyCheckInRead, WeeklyReviewCreate, WeeklyReviewRead
 from app.schemas.dashboard import AxisScore, DashboardSummary, ScoreUpdate, TrackReadiness
+from app.schemas.jobs import JobPostingCreate, JobPostingRead
 from app.schemas.onboarding import OnboardingInput, OnboardingResponse
 from app.schemas.plans import (
     RoadmapCreate,
@@ -98,6 +100,22 @@ def _weekly_review_read(review: WeeklyReview) -> WeeklyReviewRead:
         priority_adjustments=review.priority_adjustments,
         score_changes=review.score_changes,
         summary=review.summary,
+    )
+
+
+def _job_posting_read(job: JobPosting) -> JobPostingRead:
+    return JobPostingRead(
+        id=job.id,
+        company_name=job.company_name,
+        position_title=job.position_title,
+        source_url=job.source_url,
+        raw_content=job.raw_content,
+        deadline=job.deadline,
+        status=job.status,
+        fit_score=job.fit_score,
+        summary=job.summary,
+        required_skills=job.required_skills or [],
+        recommended_actions=job.recommended_actions or [],
     )
 
 
@@ -545,6 +563,55 @@ async def create_ai_suggestion(payload: AiSuggestionCreate, db: AsyncSession = D
     await db.commit()
     await db.refresh(plan)
     return _ai_plan_read(plan)
+
+
+@router.get("/job-postings", response_model=list[JobPostingRead])
+async def list_job_postings(db: AsyncSession = Depends(get_db)) -> list[JobPostingRead]:
+    user_id = get_settings().default_user_id
+    result = await db.execute(
+        select(JobPosting).where(JobPosting.user_id == user_id).order_by(JobPosting.deadline, JobPosting.id.desc())
+    )
+    return [_job_posting_read(job) for job in result.scalars()]
+
+
+@router.post("/job-postings", response_model=JobPostingRead)
+async def create_job_posting(payload: JobPostingCreate, db: AsyncSession = Depends(get_db)) -> JobPostingRead:
+    user_id = get_settings().default_user_id
+    job = JobPosting(
+        user_id=user_id,
+        company_name=payload.company_name,
+        position_title=payload.position_title,
+        source_url=payload.source_url,
+        raw_content=payload.raw_content,
+        deadline=payload.deadline,
+        status=payload.status,
+        required_skills=[],
+        recommended_actions=[],
+    )
+    db.add(job)
+    await db.commit()
+    await db.refresh(job)
+    return _job_posting_read(job)
+
+
+@router.post("/job-postings/{job_id}/analyze", response_model=JobPostingRead)
+async def analyze_job_posting(job_id: int, db: AsyncSession = Depends(get_db)) -> JobPostingRead:
+    user_id = get_settings().default_user_id
+    job = await db.get(JobPosting, job_id)
+    if job is None or job.user_id != user_id:
+        raise HTTPException(status_code=404, detail="Job posting not found")
+
+    provider = get_ai_provider()
+    analysis = await provider.analyze_job_posting(job.raw_content or job.source_url)
+    job.summary = analysis.get("summary")
+    job.fit_score = analysis.get("fit_score")
+    job.required_skills = analysis.get("required_skills", [])
+    job.recommended_actions = analysis.get("recommended_actions", [])
+    job.status = "ready"
+
+    await db.commit()
+    await db.refresh(job)
+    return _job_posting_read(job)
 
 
 @router.patch("/ai-plans/{plan_id}", response_model=AiPlanRead)

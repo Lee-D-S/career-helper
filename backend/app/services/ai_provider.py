@@ -11,7 +11,7 @@ class AIProvider(Protocol):
     async def generate_weekly_review(self) -> dict[str, Any]:
         ...
 
-    async def analyze_job_posting(self) -> dict[str, Any]:
+    async def analyze_job_posting(self, content: str | None = None) -> dict[str, Any]:
         ...
 
 
@@ -73,11 +73,25 @@ class MockProvider:
             ],
         }
 
-    async def analyze_job_posting(self) -> dict[str, Any]:
+    async def analyze_job_posting(self, content: str | None = None) -> dict[str, Any]:
+        text = (content or "").lower()
+        required_skills = ["SQL", "API 연동", "금융 도메인 이해"]
+        if "spring" in text or "java" in text:
+            required_skills.insert(0, "Java/Spring")
+        if "python" in text or "fastapi" in text:
+            required_skills.insert(0, "Python/FastAPI")
+        if "aws" in text or "docker" in text:
+            required_skills.append("AWS/Docker")
+
         return {
-            "summary": "공고 본문을 입력하면 요구 역량, 부족 역량, 지원 전 액션을 요약한다.",
-            "fit_score": None,
-            "recommended_actions": [],
+            "summary": "금융 IT/백엔드 역량과 연결되는 공고로 보고, 프로젝트 설명과 SQL/API 역량 보완이 필요합니다.",
+            "fit_score": 65,
+            "required_skills": required_skills,
+            "recommended_actions": [
+                "auto-invest의 API, DB, 리스크 관리 구조를 공고 요구 역량에 맞춰 요약",
+                "SQL 직접 작성 경험을 보완할 문제 풀이 기록 추가",
+                "인턴 경험을 거래 시스템/SaaS 운영 경험 중심으로 재정리",
+            ],
         }
 
 
