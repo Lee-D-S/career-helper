@@ -5,11 +5,71 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import get_settings
 from app.db.session import get_db
 from app.models.career import CareerTrack, CompetencyAxis, TrackCompetencyScore
+from app.models.plan import Roadmap, RoadmapItem, Task, WeeklyPlan
 from app.schemas.dashboard import AxisScore, DashboardSummary, ScoreUpdate, TrackReadiness
 from app.schemas.onboarding import OnboardingInput, OnboardingResponse
+from app.schemas.plans import (
+    RoadmapCreate,
+    RoadmapItemRead,
+    RoadmapRead,
+    TaskRead,
+    TaskUpdate,
+    WeeklyPlanCreate,
+    WeeklyPlanRead,
+)
 from app.services.onboarding import save_onboarding
 
 router = APIRouter()
+
+
+def _roadmap_read(roadmap: Roadmap, items: list[RoadmapItem]) -> RoadmapRead:
+    return RoadmapRead(
+        id=roadmap.id,
+        title=roadmap.title,
+        track_id=roadmap.track_id,
+        start_date=roadmap.start_date,
+        end_date=roadmap.end_date,
+        status=roadmap.status,
+        items=[
+            RoadmapItemRead(
+                id=item.id,
+                roadmap_id=item.roadmap_id,
+                title=item.title,
+                description=item.description,
+                start_date=item.start_date,
+                end_date=item.end_date,
+                priority=item.priority,
+                status=item.status,
+            )
+            for item in items
+        ],
+    )
+
+
+def _weekly_plan_read(plan: WeeklyPlan, tasks: list[Task]) -> WeeklyPlanRead:
+    return WeeklyPlanRead(
+        id=plan.id,
+        title=plan.title,
+        track_id=plan.track_id,
+        week_start=plan.week_start,
+        week_end=plan.week_end,
+        status=plan.status,
+        tasks=[
+            TaskRead(
+                id=task.id,
+                weekly_plan_id=task.weekly_plan_id,
+                title=task.title,
+                category=task.category,
+                description=task.description,
+                estimated_hours=task.estimated_hours,
+                actual_hours=task.actual_hours,
+                status=task.status,
+                due_date=task.due_date,
+                reason=task.reason,
+            )
+            for task in tasks
+        ],
+    )
 
 
 @router.get("/health")
@@ -114,4 +174,133 @@ async def update_score(
         target_score=score.target_score,
         weight=score.weight,
         evidence=score.evidence,
+    )
+
+
+@router.get("/roadmaps", response_model=list[RoadmapRead])
+async def list_roadmaps(db: AsyncSession = Depends(get_db)) -> list[RoadmapRead]:
+    user_id = get_settings().default_user_id
+    result = await db.execute(select(Roadmap).where(Roadmap.user_id == user_id).order_by(Roadmap.start_date, Roadmap.id))
+    roadmaps = list(result.scalars())
+    response: list[RoadmapRead] = []
+    for roadmap in roadmaps:
+        items_result = await db.execute(
+            select(RoadmapItem).where(RoadmapItem.roadmap_id == roadmap.id).order_by(RoadmapItem.priority, RoadmapItem.id)
+        )
+        response.append(_roadmap_read(roadmap, list(items_result.scalars())))
+    return response
+
+
+@router.post("/roadmaps", response_model=RoadmapRead)
+async def create_roadmap(payload: RoadmapCreate, db: AsyncSession = Depends(get_db)) -> RoadmapRead:
+    user_id = get_settings().default_user_id
+    roadmap = Roadmap(
+        user_id=user_id,
+        track_id=payload.track_id,
+        title=payload.title,
+        start_date=payload.start_date,
+        end_date=payload.end_date,
+        status=payload.status,
+    )
+    db.add(roadmap)
+    await db.flush()
+
+    items: list[RoadmapItem] = []
+    for item_payload in payload.items:
+        item = RoadmapItem(
+            roadmap_id=roadmap.id,
+            title=item_payload.title,
+            description=item_payload.description,
+            start_date=item_payload.start_date,
+            end_date=item_payload.end_date,
+            priority=item_payload.priority,
+            status=item_payload.status,
+        )
+        db.add(item)
+        items.append(item)
+
+    await db.commit()
+    await db.refresh(roadmap)
+    for item in items:
+        await db.refresh(item)
+    return _roadmap_read(roadmap, items)
+
+
+@router.get("/weekly-plans", response_model=list[WeeklyPlanRead])
+async def list_weekly_plans(db: AsyncSession = Depends(get_db)) -> list[WeeklyPlanRead]:
+    user_id = get_settings().default_user_id
+    result = await db.execute(
+        select(WeeklyPlan).where(WeeklyPlan.user_id == user_id).order_by(WeeklyPlan.week_start.desc(), WeeklyPlan.id.desc())
+    )
+    plans = list(result.scalars())
+    response: list[WeeklyPlanRead] = []
+    for plan in plans:
+        tasks_result = await db.execute(select(Task).where(Task.weekly_plan_id == plan.id).order_by(Task.due_date, Task.id))
+        response.append(_weekly_plan_read(plan, list(tasks_result.scalars())))
+    return response
+
+
+@router.post("/weekly-plans", response_model=WeeklyPlanRead)
+async def create_weekly_plan(payload: WeeklyPlanCreate, db: AsyncSession = Depends(get_db)) -> WeeklyPlanRead:
+    user_id = get_settings().default_user_id
+    plan = WeeklyPlan(
+        user_id=user_id,
+        track_id=payload.track_id,
+        week_start=payload.week_start,
+        week_end=payload.week_end,
+        title=payload.title,
+        status=payload.status,
+    )
+    db.add(plan)
+    await db.flush()
+
+    tasks: list[Task] = []
+    for task_payload in payload.tasks:
+        task = Task(
+            weekly_plan_id=plan.id,
+            title=task_payload.title,
+            category=task_payload.category,
+            description=task_payload.description,
+            estimated_hours=task_payload.estimated_hours,
+            status=task_payload.status,
+            due_date=task_payload.due_date,
+            reason=task_payload.reason,
+        )
+        db.add(task)
+        tasks.append(task)
+
+    await db.commit()
+    await db.refresh(plan)
+    for task in tasks:
+        await db.refresh(task)
+    return _weekly_plan_read(plan, tasks)
+
+
+@router.patch("/tasks/{task_id}", response_model=TaskRead)
+async def update_task(task_id: int, payload: TaskUpdate, db: AsyncSession = Depends(get_db)) -> TaskRead:
+    user_id = get_settings().default_user_id
+    task = await db.get(Task, task_id)
+    if task is None:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    plan = await db.get(WeeklyPlan, task.weekly_plan_id)
+    if plan is None or plan.user_id != user_id:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    for field, value in payload.model_dump(exclude_unset=True).items():
+        setattr(task, field, value)
+
+    await db.commit()
+    await db.refresh(task)
+    return TaskRead(
+        id=task.id,
+        weekly_plan_id=task.weekly_plan_id,
+        title=task.title,
+        category=task.category,
+        description=task.description,
+        estimated_hours=task.estimated_hours,
+        actual_hours=task.actual_hours,
+        status=task.status,
+        due_date=task.due_date,
+        reason=task.reason,
     )

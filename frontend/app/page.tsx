@@ -1,7 +1,7 @@
 import { AlertCircle, CalendarDays, ClipboardCheck, Target } from "lucide-react";
 import Link from "next/link";
 
-import { getDashboard } from "@/lib/api";
+import { type DashboardSummary, getDashboard, getRoadmaps, getWeeklyPlans, type Roadmap, type WeeklyPlan } from "@/lib/api";
 
 function Metric({ label, value }: { label: string; value: string }) {
   return (
@@ -13,11 +13,16 @@ function Metric({ label, value }: { label: string; value: string }) {
 }
 
 export default async function Home() {
-  let dashboard = null;
-  let error = null;
+  let dashboard: DashboardSummary | null = null;
+  let roadmaps: Roadmap[] = [];
+  let weeklyPlans: WeeklyPlan[] = [];
+  let error: string | null = null;
 
   try {
-    dashboard = await getDashboard();
+    const [dashboardData, roadmapData, weeklyPlanData] = await Promise.all([getDashboard(), getRoadmaps(), getWeeklyPlans()]);
+    dashboard = dashboardData;
+    roadmaps = roadmapData;
+    weeklyPlans = weeklyPlanData;
   } catch (err) {
     error = err instanceof Error ? err.message : "대시보드를 불러오지 못했습니다.";
   }
@@ -25,6 +30,8 @@ export default async function Home() {
   const targetTrack = dashboard?.target_track ?? "온보딩 필요";
   const readiness = dashboard?.readiness?.[0];
   const weakestAxes = dashboard?.weakest_axes ?? [];
+  const currentPlan = weeklyPlans[0];
+  const currentRoadmap = roadmaps[0];
 
   return (
     <main className="min-h-screen">
@@ -37,6 +44,12 @@ export default async function Home() {
           <div className="flex gap-2">
             <Link className="rounded-md bg-muted px-3 py-2 text-sm font-medium" href="/onboarding">
               온보딩
+            </Link>
+            <Link className="rounded-md bg-muted px-3 py-2 text-sm font-medium" href="/roadmap">
+              로드맵
+            </Link>
+            <Link className="rounded-md bg-muted px-3 py-2 text-sm font-medium" href="/weekly-plan">
+              주간 계획
             </Link>
             <Link className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground" href="/readiness">
               역량 점수
@@ -54,7 +67,7 @@ export default async function Home() {
           <Metric label="목표 직무" value={targetTrack} />
           <Metric label="준비도 점수" value={readiness ? `${readiness.weighted_score}/5` : "-"} />
           <Metric label="부족 역량" value={weakestAxes[0]?.axis ?? "-"} />
-          <Metric label="이번 주 상태" value="계획 전" />
+          <Metric label="이번 주 상태" value={currentPlan ? currentPlan.status : "계획 전"} />
         </section>
 
         <section className="grid gap-4 lg:grid-cols-[1.4fr_1fr]">
@@ -64,12 +77,15 @@ export default async function Home() {
               <h2 className="text-lg font-semibold">이번 주 최우선 목표</h2>
             </div>
             <div className="grid gap-3 p-5">
-              {["온보딩 입력 완료", "금융 IT 풀스택 트랙 점수 확인", "auto-invest README 1차 작성"].map((item) => (
-                <div key={item} className="flex items-center justify-between rounded-md border p-3">
-                  <span className="text-sm font-medium">{item}</span>
-                  <span className="text-xs text-muted-foreground">todo</span>
+              {(currentPlan?.tasks.length ? currentPlan.tasks : []).map((item) => (
+                <div key={item.id} className="flex items-center justify-between rounded-md border p-3">
+                  <span className="text-sm font-medium">{item.title}</span>
+                  <span className="text-xs text-muted-foreground">{item.status}</span>
                 </div>
               ))}
+              {!currentPlan?.tasks.length ? (
+                <p className="text-sm text-muted-foreground">주간 계획을 만들면 최우선 작업이 표시됩니다.</p>
+              ) : null}
             </div>
           </div>
 
@@ -105,9 +121,15 @@ export default async function Home() {
               <h2 className="text-lg font-semibold">로드맵</h2>
             </div>
             <div className="mt-4 space-y-3 text-sm">
-              <div className="rounded-md bg-muted p-3">5월 말~6월: 기반 정리</div>
-              <div className="rounded-md bg-muted p-3">7월: 취업 자료 제작</div>
-              <div className="rounded-md bg-muted p-3">8월: 실전 지원 준비</div>
+              {currentRoadmap?.items.length ? (
+                currentRoadmap.items.map((item) => (
+                  <div key={item.id} className="rounded-md bg-muted p-3">
+                    {item.title}
+                  </div>
+                ))
+              ) : (
+                <p className="text-sm text-muted-foreground">로드맵을 만들면 월간 목표가 표시됩니다.</p>
+              )}
             </div>
           </div>
           <div className="rounded-md border bg-card p-5">

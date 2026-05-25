@@ -15,7 +15,7 @@ Phase 7: 포트폴리오 정리/배포 준비
 
 ## 2. 현재 상태 요약
 
-현재는 **Phase 1 완료, Phase 2 주요 흐름 구현 완료** 상태다.
+현재는 **Phase 1 완료, Phase 2 주요 흐름 구현 완료, Phase 3 초입 구현 완료** 상태다.
 
 ```text
 완료:
@@ -34,13 +34,16 @@ Phase 7: 포트폴리오 정리/배포 준비
 - 초기 역량 점수 추정
 - 역량 점수 수정 API
 - 역량 점수 수정 화면
+- 로드맵 생성/조회 API
+- 로드맵 화면
+- 주간 계획 생성/조회 API
+- 작업 상태 수정 API
+- 주간 계획 화면
 
 진행 중:
-- 온보딩/진단/트랙 흐름의 실제 DB 연동 검증
+- 온보딩/진단/트랙/로드맵/주간 계획 흐름의 실제 DB 연동 검증
 
 아직 미구현:
-- 로드맵 CRUD
-- 주간 계획 CRUD
 - 일일 체크인
 - 주간 회고
 - AI Provider 인터페이스
@@ -155,17 +158,31 @@ TrackCompetencyScore 모델
 
 ### Phase 3: 로드맵/주간 계획
 
-상태: 미구현
+상태: 일부 구현
 
-예정 작업:
+구현됨:
 
 ```text
-Roadmap CRUD
-RoadmapItem CRUD
-WeeklyPlan CRUD
-Task CRUD
-계획 승인/수정/거절 상태
+GET /api/roadmaps
+POST /api/roadmaps
+GET /api/weekly-plans
+POST /api/weekly-plans
+PATCH /api/tasks/{task_id}
+로드맵 생성/조회 화면
+주간 계획 생성/조회 화면
+작업 todo/done 상태 변경
 이번 주 계획 대시보드 연결
+```
+
+남은 작업:
+
+```text
+로드맵 수정/삭제
+로드맵 항목 상태 변경
+주간 계획 수정/삭제
+작업 상세 수정
+계획 승인/수정/거절 상태
+AI 제안 계획과 수동 계획 구분
 ```
 
 ### Phase 4: 일일 체크인/주간 회고
@@ -239,8 +256,8 @@ AWS EC2 또는 Lightsail 배포 검토
 1. Docker Desktop 실행 후 docker compose up 검증
 2. 온보딩 저장 실제 동작 확인
 3. 역량 점수 수정 실제 동작 확인
-4. 트랙 우선순위 수정 UI 추가
-5. 로드맵 CRUD 구현 시작
+4. 로드맵/주간 계획 생성 실제 동작 확인
+5. 일일 체크인 구현 시작
 ```
 
 ## 5. 갱신 규칙
