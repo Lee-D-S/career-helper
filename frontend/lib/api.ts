@@ -69,6 +69,24 @@ export type WeeklyPlan = {
   tasks: Task[];
 };
 
+export type DailyCheckIn = {
+  id: number;
+  date: string;
+  actual_hours: number;
+  completed_work: string;
+  blockers?: string | null;
+};
+
+export type WeeklyReview = {
+  id: number;
+  weekly_plan_id: number;
+  completion_rate: number;
+  blockers?: string | null;
+  priority_adjustments?: string | null;
+  score_changes?: string | null;
+  summary?: string | null;
+};
+
 export async function getDashboard(): Promise<DashboardSummary> {
   const response = await fetch(`${API_BASE_URL}/dashboard`, { cache: "no-store" });
   if (!response.ok) {
@@ -156,6 +174,46 @@ export async function updateTask(taskId: number, payload: Partial<Task>): Promis
   });
   if (!response.ok) {
     throw new Error("작업 저장에 실패했습니다.");
+  }
+  return response.json();
+}
+
+export async function getDailyCheckIns(): Promise<DailyCheckIn[]> {
+  const response = await fetch(`${API_BASE_URL}/daily-checkins`, { cache: "no-store" });
+  if (!response.ok) {
+    throw new Error("일일 체크인을 불러오지 못했습니다.");
+  }
+  return response.json();
+}
+
+export async function createDailyCheckIn(payload: unknown): Promise<DailyCheckIn> {
+  const response = await fetch(`${API_BASE_URL}/daily-checkins`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  if (!response.ok) {
+    throw new Error("일일 체크인 저장에 실패했습니다.");
+  }
+  return response.json();
+}
+
+export async function getWeeklyReviews(): Promise<WeeklyReview[]> {
+  const response = await fetch(`${API_BASE_URL}/weekly-reviews`, { cache: "no-store" });
+  if (!response.ok) {
+    throw new Error("주간 회고를 불러오지 못했습니다.");
+  }
+  return response.json();
+}
+
+export async function createWeeklyReview(payload: unknown): Promise<WeeklyReview> {
+  const response = await fetch(`${API_BASE_URL}/weekly-reviews`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  if (!response.ok) {
+    throw new Error("주간 회고 저장에 실패했습니다.");
   }
   return response.json();
 }

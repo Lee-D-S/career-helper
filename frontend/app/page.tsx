@@ -1,7 +1,16 @@
 import { AlertCircle, CalendarDays, ClipboardCheck, Target } from "lucide-react";
 import Link from "next/link";
 
-import { type DashboardSummary, getDashboard, getRoadmaps, getWeeklyPlans, type Roadmap, type WeeklyPlan } from "@/lib/api";
+import {
+  type DailyCheckIn,
+  type DashboardSummary,
+  getDailyCheckIns,
+  getDashboard,
+  getRoadmaps,
+  getWeeklyPlans,
+  type Roadmap,
+  type WeeklyPlan
+} from "@/lib/api";
 
 function Metric({ label, value }: { label: string; value: string }) {
   return (
@@ -16,13 +25,20 @@ export default async function Home() {
   let dashboard: DashboardSummary | null = null;
   let roadmaps: Roadmap[] = [];
   let weeklyPlans: WeeklyPlan[] = [];
+  let checkIns: DailyCheckIn[] = [];
   let error: string | null = null;
 
   try {
-    const [dashboardData, roadmapData, weeklyPlanData] = await Promise.all([getDashboard(), getRoadmaps(), getWeeklyPlans()]);
+    const [dashboardData, roadmapData, weeklyPlanData, checkInData] = await Promise.all([
+      getDashboard(),
+      getRoadmaps(),
+      getWeeklyPlans(),
+      getDailyCheckIns()
+    ]);
     dashboard = dashboardData;
     roadmaps = roadmapData;
     weeklyPlans = weeklyPlanData;
+    checkIns = checkInData;
   } catch (err) {
     error = err instanceof Error ? err.message : "대시보드를 불러오지 못했습니다.";
   }
@@ -32,6 +48,7 @@ export default async function Home() {
   const weakestAxes = dashboard?.weakest_axes ?? [];
   const currentPlan = weeklyPlans[0];
   const currentRoadmap = roadmaps[0];
+  const latestCheckIn = checkIns[0];
 
   return (
     <main className="min-h-screen">
@@ -51,6 +68,12 @@ export default async function Home() {
             <Link className="rounded-md bg-muted px-3 py-2 text-sm font-medium" href="/weekly-plan">
               주간 계획
             </Link>
+            <Link className="rounded-md bg-muted px-3 py-2 text-sm font-medium" href="/check-in">
+              체크인
+            </Link>
+            <Link className="rounded-md bg-muted px-3 py-2 text-sm font-medium" href="/weekly-review">
+              회고
+            </Link>
             <Link className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground" href="/readiness">
               역량 점수
             </Link>
@@ -67,7 +90,7 @@ export default async function Home() {
           <Metric label="목표 직무" value={targetTrack} />
           <Metric label="준비도 점수" value={readiness ? `${readiness.weighted_score}/5` : "-"} />
           <Metric label="부족 역량" value={weakestAxes[0]?.axis ?? "-"} />
-          <Metric label="이번 주 상태" value={currentPlan ? currentPlan.status : "계획 전"} />
+          <Metric label="최근 체크인" value={latestCheckIn ? `${latestCheckIn.actual_hours}h` : "없음"} />
         </section>
 
         <section className="grid gap-4 lg:grid-cols-[1.4fr_1fr]">
@@ -135,11 +158,19 @@ export default async function Home() {
           <div className="rounded-md border bg-card p-5">
             <div className="flex items-center gap-2">
               <CalendarDays className="h-5 w-5 text-primary" />
-              <h2 className="text-lg font-semibold">일정</h2>
+              <h2 className="text-lg font-semibold">최근 체크인</h2>
             </div>
-            <p className="mt-4 text-sm text-muted-foreground">
-              주간 계획, 공고 마감일, 자격증 시험일을 내부 캘린더와 .ics 내보내기로 연결할 예정입니다.
-            </p>
+            {latestCheckIn ? (
+              <div className="mt-4 space-y-2 text-sm">
+                <p className="font-medium">
+                  {latestCheckIn.date} · {latestCheckIn.actual_hours}시간
+                </p>
+                <p className="text-muted-foreground">{latestCheckIn.completed_work}</p>
+                {latestCheckIn.blockers ? <p className="text-muted-foreground">막힌 점: {latestCheckIn.blockers}</p> : null}
+              </div>
+            ) : (
+              <p className="mt-4 text-sm text-muted-foreground">일일 체크인을 남기면 최근 실행 기록이 표시됩니다.</p>
+            )}
           </div>
         </section>
       </div>

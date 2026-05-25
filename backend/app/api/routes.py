@@ -5,7 +5,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import get_settings
 from app.db.session import get_db
 from app.models.career import CareerTrack, CompetencyAxis, TrackCompetencyScore
+from app.models.checkin import DailyCheckIn, WeeklyReview
 from app.models.plan import Roadmap, RoadmapItem, Task, WeeklyPlan
+from app.schemas.checkins import DailyCheckInCreate, DailyCheckInRead, WeeklyReviewCreate, WeeklyReviewRead
 from app.schemas.dashboard import AxisScore, DashboardSummary, ScoreUpdate, TrackReadiness
 from app.schemas.onboarding import OnboardingInput, OnboardingResponse
 from app.schemas.plans import (
@@ -70,6 +72,37 @@ def _weekly_plan_read(plan: WeeklyPlan, tasks: list[Task]) -> WeeklyPlanRead:
             for task in tasks
         ],
     )
+
+
+def _daily_checkin_read(checkin: DailyCheckIn) -> DailyCheckInRead:
+    return DailyCheckInRead(
+        id=checkin.id,
+        date=checkin.date,
+        actual_hours=checkin.actual_hours,
+        completed_work=checkin.completed_work,
+        blockers=checkin.blockers,
+    )
+
+
+def _weekly_review_read(review: WeeklyReview) -> WeeklyReviewRead:
+    return WeeklyReviewRead(
+        id=review.id,
+        weekly_plan_id=review.weekly_plan_id,
+        completion_rate=review.completion_rate,
+        blockers=review.blockers,
+        priority_adjustments=review.priority_adjustments,
+        score_changes=review.score_changes,
+        summary=review.summary,
+    )
+
+
+async def _calculate_completion_rate(db: AsyncSession, weekly_plan_id: int) -> float:
+    result = await db.execute(select(Task).where(Task.weekly_plan_id == weekly_plan_id))
+    tasks = list(result.scalars())
+    if not tasks:
+        return 0
+    done_count = sum(1 for task in tasks if task.status == "done")
+    return round(done_count / len(tasks) * 100, 1)
 
 
 @router.get("/health")
@@ -304,3 +337,61 @@ async def update_task(task_id: int, payload: TaskUpdate, db: AsyncSession = Depe
         due_date=task.due_date,
         reason=task.reason,
     )
+
+
+@router.get("/daily-checkins", response_model=list[DailyCheckInRead])
+async def list_daily_checkins(db: AsyncSession = Depends(get_db)) -> list[DailyCheckInRead]:
+    user_id = get_settings().default_user_id
+    result = await db.execute(
+        select(DailyCheckIn).where(DailyCheckIn.user_id == user_id).order_by(DailyCheckIn.date.desc(), DailyCheckIn.id.desc())
+    )
+    return [_daily_checkin_read(checkin) for checkin in result.scalars()]
+
+
+@router.post("/daily-checkins", response_model=DailyCheckInRead)
+async def create_daily_checkin(payload: DailyCheckInCreate, db: AsyncSession = Depends(get_db)) -> DailyCheckInRead:
+    user_id = get_settings().default_user_id
+    checkin = DailyCheckIn(
+        user_id=user_id,
+        date=payload.date,
+        actual_hours=payload.actual_hours,
+        completed_work=payload.completed_work,
+        blockers=payload.blockers,
+    )
+    db.add(checkin)
+    await db.commit()
+    await db.refresh(checkin)
+    return _daily_checkin_read(checkin)
+
+
+@router.get("/weekly-reviews", response_model=list[WeeklyReviewRead])
+async def list_weekly_reviews(db: AsyncSession = Depends(get_db)) -> list[WeeklyReviewRead]:
+    user_id = get_settings().default_user_id
+    result = await db.execute(
+        select(WeeklyReview).where(WeeklyReview.user_id == user_id).order_by(WeeklyReview.created_at.desc(), WeeklyReview.id.desc())
+    )
+    return [_weekly_review_read(review) for review in result.scalars()]
+
+
+@router.post("/weekly-reviews", response_model=WeeklyReviewRead)
+async def create_weekly_review(payload: WeeklyReviewCreate, db: AsyncSession = Depends(get_db)) -> WeeklyReviewRead:
+    user_id = get_settings().default_user_id
+    plan = await db.get(WeeklyPlan, payload.weekly_plan_id)
+    if plan is None or plan.user_id != user_id:
+        raise HTTPException(status_code=404, detail="Weekly plan not found")
+
+    existing = await db.scalar(select(WeeklyReview).where(WeeklyReview.weekly_plan_id == payload.weekly_plan_id))
+    completion_rate = await _calculate_completion_rate(db, payload.weekly_plan_id)
+    if existing is None:
+        existing = WeeklyReview(user_id=user_id, weekly_plan_id=payload.weekly_plan_id)
+        db.add(existing)
+
+    existing.completion_rate = completion_rate
+    existing.blockers = payload.blockers
+    existing.priority_adjustments = payload.priority_adjustments
+    existing.score_changes = payload.score_changes
+    existing.summary = payload.summary
+
+    await db.commit()
+    await db.refresh(existing)
+    return _weekly_review_read(existing)

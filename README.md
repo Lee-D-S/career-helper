@@ -49,3 +49,5 @@ rtk docker compose up --build
 4. `/readiness`에서 역량별 현재 점수, 목표 점수, 증거 메모를 수정한다.
 5. `/roadmap`에서 월간/단계별 로드맵을 만든다.
 6. `/weekly-plan`에서 이번 주 작업 계획을 만들고 완료 상태를 바꾼다.
+7. `/check-in`에서 일일 투입 시간, 완료한 작업, 막힌 점을 기록한다.
+8. `/weekly-review`에서 주간 계획의 실행률과 다음 주 조정 내용을 기록한다.
