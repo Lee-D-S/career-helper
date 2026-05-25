@@ -87,6 +87,17 @@ export type WeeklyReview = {
   summary?: string | null;
 };
 
+export type AiPlan = {
+  id: number;
+  plan_type: string;
+  raw_response?: string | null;
+  parsed_json?: Record<string, unknown> | null;
+  user_explanation?: string | null;
+  validation_status: string;
+  decision_status: string;
+  created_at: string;
+};
+
 export async function getDashboard(): Promise<DashboardSummary> {
   const response = await fetch(`${API_BASE_URL}/dashboard`, { cache: "no-store" });
   if (!response.ok) {
@@ -214,6 +225,38 @@ export async function createWeeklyReview(payload: unknown): Promise<WeeklyReview
   });
   if (!response.ok) {
     throw new Error("주간 회고 저장에 실패했습니다.");
+  }
+  return response.json();
+}
+
+export async function getAiPlans(): Promise<AiPlan[]> {
+  const response = await fetch(`${API_BASE_URL}/ai-plans`, { cache: "no-store" });
+  if (!response.ok) {
+    throw new Error("AI 제안을 불러오지 못했습니다.");
+  }
+  return response.json();
+}
+
+export async function createAiSuggestion(planType: string): Promise<AiPlan> {
+  const response = await fetch(`${API_BASE_URL}/ai-suggestions`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ plan_type: planType })
+  });
+  if (!response.ok) {
+    throw new Error("AI 제안 생성에 실패했습니다.");
+  }
+  return response.json();
+}
+
+export async function updateAiPlanDecision(planId: number, decisionStatus: string): Promise<AiPlan> {
+  const response = await fetch(`${API_BASE_URL}/ai-plans/${planId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ decision_status: decisionStatus })
+  });
+  if (!response.ok) {
+    throw new Error("AI 제안 상태 저장에 실패했습니다.");
   }
   return response.json();
 }

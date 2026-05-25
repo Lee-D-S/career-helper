@@ -4,9 +4,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
 from app.db.session import get_db
+from app.models.ai_plan import AiPlan
 from app.models.career import CareerTrack, CompetencyAxis, TrackCompetencyScore
 from app.models.checkin import DailyCheckIn, WeeklyReview
 from app.models.plan import Roadmap, RoadmapItem, Task, WeeklyPlan
+from app.schemas.ai import AiPlanDecisionUpdate, AiPlanRead, AiSuggestionCreate
 from app.schemas.checkins import DailyCheckInCreate, DailyCheckInRead, WeeklyReviewCreate, WeeklyReviewRead
 from app.schemas.dashboard import AxisScore, DashboardSummary, ScoreUpdate, TrackReadiness
 from app.schemas.onboarding import OnboardingInput, OnboardingResponse
@@ -19,6 +21,7 @@ from app.schemas.plans import (
     WeeklyPlanCreate,
     WeeklyPlanRead,
 )
+from app.services.ai_provider import get_ai_provider
 from app.services.onboarding import save_onboarding
 
 router = APIRouter()
@@ -93,6 +96,19 @@ def _weekly_review_read(review: WeeklyReview) -> WeeklyReviewRead:
         priority_adjustments=review.priority_adjustments,
         score_changes=review.score_changes,
         summary=review.summary,
+    )
+
+
+def _ai_plan_read(plan: AiPlan) -> AiPlanRead:
+    return AiPlanRead(
+        id=plan.id,
+        plan_type=plan.plan_type,
+        raw_response=plan.raw_response,
+        parsed_json=plan.parsed_json,
+        user_explanation=plan.user_explanation,
+        validation_status=plan.validation_status,
+        decision_status=plan.decision_status,
+        created_at=plan.created_at,
     )
 
 
@@ -395,3 +411,65 @@ async def create_weekly_review(payload: WeeklyReviewCreate, db: AsyncSession = D
     await db.commit()
     await db.refresh(existing)
     return _weekly_review_read(existing)
+
+
+@router.get("/ai-plans", response_model=list[AiPlanRead])
+async def list_ai_plans(db: AsyncSession = Depends(get_db)) -> list[AiPlanRead]:
+    user_id = get_settings().default_user_id
+    result = await db.execute(select(AiPlan).where(AiPlan.user_id == user_id).order_by(AiPlan.created_at.desc(), AiPlan.id.desc()))
+    return [_ai_plan_read(plan) for plan in result.scalars()]
+
+
+@router.post("/ai-suggestions", response_model=AiPlanRead)
+async def create_ai_suggestion(payload: AiSuggestionCreate, db: AsyncSession = Depends(get_db)) -> AiPlanRead:
+    user_id = get_settings().default_user_id
+    provider = get_ai_provider()
+
+    if payload.plan_type == "roadmap":
+        parsed = await provider.generate_roadmap()
+        explanation = "현재 목표 직무와 부족 역량을 기준으로 로드맵 초안을 생성했습니다."
+    elif payload.plan_type == "weekly_plan":
+        parsed = await provider.generate_weekly_plan()
+        explanation = "이번 주 실행 가능한 산출물 중심으로 주간 계획 초안을 생성했습니다."
+    elif payload.plan_type == "weekly_review":
+        parsed = await provider.generate_weekly_review()
+        explanation = "주간 회고에서 확인해야 할 기준과 요약 초안을 생성했습니다."
+    elif payload.plan_type == "job_posting":
+        parsed = await provider.analyze_job_posting()
+        explanation = "공고 분석 초안을 생성했습니다."
+    else:
+        raise HTTPException(status_code=400, detail="Unsupported suggestion type")
+
+    plan = AiPlan(
+        user_id=user_id,
+        plan_type=payload.plan_type,
+        raw_response=str(parsed),
+        parsed_json=parsed,
+        user_explanation=explanation,
+        validation_status="valid",
+        decision_status="suggested",
+    )
+    db.add(plan)
+    await db.commit()
+    await db.refresh(plan)
+    return _ai_plan_read(plan)
+
+
+@router.patch("/ai-plans/{plan_id}", response_model=AiPlanRead)
+async def update_ai_plan_decision(
+    plan_id: int,
+    payload: AiPlanDecisionUpdate,
+    db: AsyncSession = Depends(get_db),
+) -> AiPlanRead:
+    user_id = get_settings().default_user_id
+    if payload.decision_status not in {"suggested", "accepted", "edited", "rejected"}:
+        raise HTTPException(status_code=400, detail="Invalid decision_status")
+
+    plan = await db.get(AiPlan, plan_id)
+    if plan is None or plan.user_id != user_id:
+        raise HTTPException(status_code=404, detail="AI plan not found")
+
+    plan.decision_status = payload.decision_status
+    await db.commit()
+    await db.refresh(plan)
+    return _ai_plan_read(plan)

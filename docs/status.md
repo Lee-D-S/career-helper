@@ -15,7 +15,7 @@ Phase 7: 포트폴리오 정리/배포 준비
 
 ## 2. 현재 상태 요약
 
-현재는 **Phase 1 완료, Phase 2 주요 흐름 구현 완료, Phase 3 초입 구현 완료, Phase 4 초입 구현 완료** 상태다.
+현재는 **Phase 1 완료, Phase 2 주요 흐름 구현 완료, Phase 3 초입 구현 완료, Phase 4 초입 구현 완료, Phase 5 초입 구현 완료** 상태다.
 
 ```text
 완료:
@@ -44,13 +44,16 @@ Phase 7: 포트폴리오 정리/배포 준비
 - 주간 회고 생성/조회 API
 - 주간 회고 화면
 - 작업 완료율 기반 주간 실행률 계산
+- AIProvider 인터페이스
+- MockProvider
+- AI 제안 생성 API
+- AI 제안 목록/상태 변경 API
+- AI 제안 화면
 
 진행 중:
-- 온보딩/진단/트랙/로드맵/주간 계획/체크인/회고 흐름의 실제 DB 연동 검증
+- 온보딩/진단/트랙/로드맵/주간 계획/체크인/회고/AI 제안 흐름의 실제 DB 연동 검증
 
 아직 미구현:
-- AI Provider 인터페이스
-- MockProvider
 - Gemini Provider
 - 공고 URL/본문 저장
 - 공고 AI 요약/분류
@@ -218,20 +221,30 @@ POST /api/weekly-reviews
 
 ### Phase 5: AI 코칭
 
-상태: 미구현
+상태: 일부 구현
 
-예정 작업:
+구현됨:
 
 ```text
 AIProvider 인터페이스
 MockProvider
+GET /api/ai-plans
+POST /api/ai-suggestions
+PATCH /api/ai-plans/{plan_id}
+로드맵/주간 계획/주간 회고/공고 분석 Mock 제안 생성
+AI 제안 승인/거절 상태 변경
+AI 제안 화면
+```
+
+남은 작업:
+
+```text
 GeminiProvider
 구조화 JSON 응답 검증
 AI 실패 시 수동 fallback
-로드맵 제안
-주간 계획 제안
-공고 분석
-주간 회고 초안
+accepted 제안을 실제 로드맵/주간 계획으로 반영
+사용자 수정 상태 edited 처리
+공고 본문 기반 분석 입력
 ```
 
 ### Phase 6: 공고/캘린더
@@ -275,7 +288,8 @@ AWS EC2 또는 Lightsail 배포 검토
 3. 역량 점수 수정 실제 동작 확인
 4. 로드맵/주간 계획 생성 실제 동작 확인
 5. 일일 체크인/주간 회고 실제 동작 확인
-6. AIProvider 인터페이스와 MockProvider 구현 시작
+6. AI 제안 생성/승인/거절 실제 동작 확인
+7. accepted 제안을 실제 데이터로 반영하는 흐름 구현
 ```
 
 ## 5. 갱신 규칙
