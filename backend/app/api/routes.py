@@ -1,6 +1,6 @@
 from datetime import date, datetime, time, timedelta
 
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -13,10 +13,10 @@ from app.models.checkin import DailyCheckIn, WeeklyReview
 from app.models.job import JobPosting
 from app.models.plan import Roadmap, RoadmapItem, Task, WeeklyPlan
 from app.schemas.ai import AiPlanDecisionUpdate, AiPlanRead, AiSuggestionCreate
-from app.schemas.calendar import CalendarEventCreate, CalendarEventRead
+from app.schemas.calendar import CalendarEventCreate, CalendarEventRead, CalendarEventUpdate
 from app.schemas.checkins import DailyCheckInCreate, DailyCheckInRead, WeeklyReviewCreate, WeeklyReviewRead
 from app.schemas.dashboard import AxisScore, DashboardSummary, ScoreUpdate, TrackReadiness
-from app.schemas.jobs import JobPostingCreate, JobPostingRead
+from app.schemas.jobs import JobPostingCreate, JobPostingRead, JobPostingUpdate
 from app.schemas.onboarding import OnboardingInput, OnboardingResponse
 from app.schemas.plans import (
     RoadmapCreate,
@@ -658,6 +658,33 @@ async def create_job_posting(payload: JobPostingCreate, db: AsyncSession = Depen
     return _job_posting_read(job)
 
 
+@router.patch("/job-postings/{job_id}", response_model=JobPostingRead)
+async def update_job_posting(job_id: int, payload: JobPostingUpdate, db: AsyncSession = Depends(get_db)) -> JobPostingRead:
+    user_id = get_settings().default_user_id
+    job = await db.get(JobPosting, job_id)
+    if job is None or job.user_id != user_id:
+        raise HTTPException(status_code=404, detail="Job posting not found")
+
+    for field, value in payload.model_dump(exclude_unset=True).items():
+        setattr(job, field, value)
+
+    await db.commit()
+    await db.refresh(job)
+    return _job_posting_read(job)
+
+
+@router.delete("/job-postings/{job_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_job_posting(job_id: int, db: AsyncSession = Depends(get_db)) -> Response:
+    user_id = get_settings().default_user_id
+    job = await db.get(JobPosting, job_id)
+    if job is None or job.user_id != user_id:
+        raise HTTPException(status_code=404, detail="Job posting not found")
+
+    await db.delete(job)
+    await db.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
 @router.post("/job-postings/{job_id}/analyze", response_model=JobPostingRead)
 async def analyze_job_posting(job_id: int, db: AsyncSession = Depends(get_db)) -> JobPostingRead:
     user_id = get_settings().default_user_id
@@ -707,6 +734,37 @@ async def create_calendar_event(payload: CalendarEventCreate, db: AsyncSession =
     await db.commit()
     await db.refresh(event)
     return _calendar_event_read(event)
+
+
+@router.patch("/calendar-events/{event_id}", response_model=CalendarEventRead)
+async def update_calendar_event(
+    event_id: int,
+    payload: CalendarEventUpdate,
+    db: AsyncSession = Depends(get_db),
+) -> CalendarEventRead:
+    user_id = get_settings().default_user_id
+    event = await db.get(CalendarEvent, event_id)
+    if event is None or event.user_id != user_id:
+        raise HTTPException(status_code=404, detail="Calendar event not found")
+
+    for field, value in payload.model_dump(exclude_unset=True).items():
+        setattr(event, field, value)
+
+    await db.commit()
+    await db.refresh(event)
+    return _calendar_event_read(event)
+
+
+@router.delete("/calendar-events/{event_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_calendar_event(event_id: int, db: AsyncSession = Depends(get_db)) -> Response:
+    user_id = get_settings().default_user_id
+    event = await db.get(CalendarEvent, event_id)
+    if event is None or event.user_id != user_id:
+        raise HTTPException(status_code=404, detail="Calendar event not found")
+
+    await db.delete(event)
+    await db.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.post("/calendar-events/sync", response_model=list[CalendarEventRead])

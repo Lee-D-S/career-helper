@@ -21,6 +21,12 @@ def request_json(method: str, path: str, body: dict[str, Any] | None = None) -> 
         return json.loads(raw) if raw else None
 
 
+def request_empty(method: str, path: str) -> int:
+    request = Request(f"{BASE_URL}{path}", method=method)
+    with urlopen(request, timeout=10) as response:
+        return response.status
+
+
 def main() -> None:
     onboarding = request_json(
         "POST",
@@ -137,6 +143,9 @@ def main() -> None:
         },
     )
     job_analyzed = request_json("POST", f"/job-postings/{job['id']}/analyze", {})
+    job_updated = request_json("PATCH", f"/job-postings/{job['id']}", {"status": "applied"})
+    job_delete_target = request_json("POST", "/job-postings", {"company_name": "Delete Smoke", "status": "saved"})
+    job_delete_status = request_empty("DELETE", f"/job-postings/{job_delete_target['id']}")
 
     event = request_json(
         "POST",
@@ -149,6 +158,17 @@ def main() -> None:
             "event_type": "manual",
         },
     )
+    event_updated = request_json("PATCH", f"/calendar-events/{event['id']}", {"title": "Updated Smoke Event"})
+    event_delete_target = request_json(
+        "POST",
+        "/calendar-events",
+        {
+            "title": "Delete Smoke Event",
+            "start_at": "2026-05-26T12:00:00",
+            "event_type": "manual",
+        },
+    )
+    event_delete_status = request_empty("DELETE", f"/calendar-events/{event_delete_target['id']}")
     synced = request_json("POST", "/calendar-events/sync", {})
     request = Request(f"{BASE_URL}/calendar-events.ics", method="GET")
     with urlopen(request, timeout=10) as response:
@@ -172,8 +192,14 @@ def main() -> None:
             f"id={ai_review_accepted['id']},applied="
             f"{ai_review_accepted['applied_resource_type']}#{ai_review_accepted['applied_resource_id']}"
         ),
-        "job": f"id={job_analyzed['id']},fit={job_analyzed['fit_score']},status={job_analyzed['status']}",
-        "calendar": f"manual={event['id']},synced={len(synced)},icsStatus={ics_status}",
+        "job": (
+            f"id={job_analyzed['id']},fit={job_analyzed['fit_score']},"
+            f"status={job_updated['status']},deleteStatus={job_delete_status}"
+        ),
+        "calendar": (
+            f"manual={event_updated['id']},title={event_updated['title']},"
+            f"deleteStatus={event_delete_status},synced={len(synced)},icsStatus={ics_status}"
+        ),
     }
     print(json.dumps(summary, ensure_ascii=False, indent=2))
 

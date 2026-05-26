@@ -18,3 +18,12 @@ class JobPostingRead(JobPostingCreate):
     summary: str | None = None
     required_skills: list[str] = Field(default_factory=list)
     recommended_actions: list[str] = Field(default_factory=list)
+
+
+class JobPostingUpdate(BaseModel):
+    company_name: str | None = None
+    position_title: str | None = None
+    source_url: str | None = None
+    raw_content: str | None = None
+    deadline: date | None = None
+    status: str | None = None

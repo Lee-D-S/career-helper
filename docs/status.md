@@ -56,9 +56,11 @@ Phase 7: 포트폴리오 정리/배포 준비
 - accepted AI 주간 회고 제안을 실제 WeeklyReview 초안으로 반영
 - Gemini 실제 키 검증 스크립트
 - 공고 저장/조회 API
+- 공고 상태 변경/삭제 API
 - AI Provider 기반 공고 분석 API
 - 공고 저장/분석 화면
 - 캘린더 일정 생성/조회 API
+- 캘린더 일정 수정/삭제 API
 - 작업/공고 마감일 캘린더 동기화 API
 - `.ics` 내보내기 API
 - 캘린더 화면
@@ -280,17 +282,23 @@ Gemini 실제 호출은 Google API까지 도달했으나 gemini-2.0-flash 무료
 ```text
 GET /api/job-postings
 POST /api/job-postings
+PATCH /api/job-postings/{job_id}
+DELETE /api/job-postings/{job_id}
 POST /api/job-postings/{job_id}/analyze
 공고 URL/본문 저장
+공고 상태 변경/삭제
 AI Provider 기반 공고 요약/분류
 공고 저장/분석 화면
 GeminiProvider 기반 공고 본문 분석
 Gemini 실패 시 MockProvider fallback
 GET /api/calendar-events
 POST /api/calendar-events
+PATCH /api/calendar-events/{event_id}
+DELETE /api/calendar-events/{event_id}
 POST /api/calendar-events/sync
 GET /api/calendar-events.ics
 수동 일정 생성/조회 화면
+일정 수정/삭제 API
 작업 due_date와 공고 deadline 캘린더 동기화
 .ics 내보내기
 ```
@@ -298,9 +306,8 @@ GET /api/calendar-events.ics
 남은 작업:
 
 ```text
-공고 수정/삭제
-공고 상태 변경
-캘린더 일정 수정/삭제
+공고 상세 필드 수정 UI
+캘린더 일정 상세 수정 UI
 월간/주간 캘린더 그리드 UI
 ```
 
@@ -325,8 +332,9 @@ AWS EC2 또는 Lightsail 배포 검토
 
 ```text
 1. Gemini quota 해소 후 실제 응답 성공 검증
-2. 로드맵/주간 계획/공고/캘린더 수정·삭제 보강
-3. 캘린더 월간/주간 그리드 UI
+2. 로드맵/주간 계획 수정·삭제 보강
+3. 공고/캘린더 상세 수정 UI
+4. 캘린더 월간/주간 그리드 UI
 ```
 
 ## 5. 갱신 규칙

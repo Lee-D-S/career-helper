@@ -15,3 +15,13 @@ class CalendarEventCreate(BaseModel):
 
 class CalendarEventRead(CalendarEventCreate):
     id: int
+
+
+class CalendarEventUpdate(BaseModel):
+    title: str | None = None
+    description: str | None = None
+    start_at: datetime | None = None
+    end_at: datetime | None = None
+    event_type: str | None = None
+    source_type: str | None = None
+    source_id: int | None = None

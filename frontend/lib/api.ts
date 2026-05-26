@@ -323,6 +323,27 @@ export async function analyzeJobPosting(jobId: number): Promise<JobPosting> {
   return response.json();
 }
 
+export async function updateJobPosting(jobId: number, payload: Partial<JobPosting>): Promise<JobPosting> {
+  const response = await fetch(`${API_BASE_URL}/job-postings/${jobId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  if (!response.ok) {
+    throw new Error("공고 저장에 실패했습니다.");
+  }
+  return response.json();
+}
+
+export async function deleteJobPosting(jobId: number): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/job-postings/${jobId}`, {
+    method: "DELETE"
+  });
+  if (!response.ok) {
+    throw new Error("공고 삭제에 실패했습니다.");
+  }
+}
+
 export async function getCalendarEvents(): Promise<CalendarEvent[]> {
   const response = await fetch(`${API_BASE_URL}/calendar-events`, { cache: "no-store" });
   if (!response.ok) {
@@ -341,6 +362,27 @@ export async function createCalendarEvent(payload: unknown): Promise<CalendarEve
     throw new Error("캘린더 일정 저장에 실패했습니다.");
   }
   return response.json();
+}
+
+export async function updateCalendarEvent(eventId: number, payload: Partial<CalendarEvent>): Promise<CalendarEvent> {
+  const response = await fetch(`${API_BASE_URL}/calendar-events/${eventId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  if (!response.ok) {
+    throw new Error("캘린더 일정 저장에 실패했습니다.");
+  }
+  return response.json();
+}
+
+export async function deleteCalendarEvent(eventId: number): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/calendar-events/${eventId}`, {
+    method: "DELETE"
+  });
+  if (!response.ok) {
+    throw new Error("캘린더 일정 삭제에 실패했습니다.");
+  }
 }
 
 export async function syncCalendarEvents(): Promise<CalendarEvent[]> {

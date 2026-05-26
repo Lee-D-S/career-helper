@@ -5,7 +5,16 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
-import { analyzeJobPosting, createJobPosting, getJobPostings, type JobPosting } from "@/lib/api";
+import {
+  analyzeJobPosting,
+  createJobPosting,
+  deleteJobPosting,
+  getJobPostings,
+  updateJobPosting,
+  type JobPosting
+} from "@/lib/api";
+
+const jobStatuses = ["saved", "ready", "applied", "rejected", "interviewing", "offer", "archived"];
 
 export default function JobPostingsPage() {
   const [jobs, setJobs] = useState<JobPosting[]>([]);
@@ -50,6 +59,26 @@ export default function JobPostingsPage() {
     }
   }
 
+  async function changeStatus(jobId: number, nextStatus: string) {
+    try {
+      await updateJobPosting(jobId, { status: nextStatus });
+      await loadJobs();
+      setStatus("공고 상태를 저장했습니다.");
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "공고 상태 저장에 실패했습니다.");
+    }
+  }
+
+  async function removeJob(jobId: number) {
+    try {
+      await deleteJobPosting(jobId);
+      await loadJobs();
+      setStatus("공고를 삭제했습니다.");
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "공고 삭제에 실패했습니다.");
+    }
+  }
+
   return (
     <main className="min-h-screen">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-6 py-6">
@@ -90,8 +119,22 @@ export default function JobPostingsPage() {
                 </div>
                 <div className="flex items-center gap-2">
                   {job.fit_score != null ? <span className="text-sm text-muted-foreground">적합도 {job.fit_score}</span> : null}
+                  <select
+                    className="h-9 rounded-md border bg-background px-2 text-sm outline-none focus:border-primary"
+                    onChange={(event) => changeStatus(job.id, event.target.value)}
+                    value={job.status}
+                  >
+                    {jobStatuses.map((item) => (
+                      <option key={item} value={item}>
+                        {item}
+                      </option>
+                    ))}
+                  </select>
                   <Button onClick={() => analyze(job.id)} type="button">
                     분석
+                  </Button>
+                  <Button onClick={() => removeJob(job.id)} type="button" variant="secondary">
+                    삭제
                   </Button>
                 </div>
               </div>

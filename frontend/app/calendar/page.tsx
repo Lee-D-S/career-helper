@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import {
   calendarIcsUrl,
   createCalendarEvent,
+  deleteCalendarEvent,
   getCalendarEvents,
   syncCalendarEvents,
   type CalendarEvent
@@ -52,6 +53,16 @@ export default function CalendarPage() {
       setStatus(`작업/공고에서 ${created.length}개 일정을 동기화했습니다.`);
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "캘린더 동기화에 실패했습니다.");
+    }
+  }
+
+  async function removeEvent(eventId: number) {
+    try {
+      await deleteCalendarEvent(eventId);
+      await loadEvents();
+      setStatus("일정을 삭제했습니다.");
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "일정 삭제에 실패했습니다.");
     }
   }
 
@@ -112,7 +123,12 @@ export default function CalendarPage() {
                     {formatDateTime(event.start_at)} {event.end_at ? `~ ${formatDateTime(event.end_at)}` : ""}
                   </p>
                 </div>
-                <span className="text-xs text-muted-foreground">{event.event_type}</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground">{event.event_type}</span>
+                  <Button onClick={() => removeEvent(event.id)} type="button" variant="secondary">
+                    삭제
+                  </Button>
+                </div>
               </div>
               {event.description ? <p className="mt-3 text-sm text-muted-foreground">{event.description}</p> : null}
             </article>
