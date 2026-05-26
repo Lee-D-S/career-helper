@@ -61,6 +61,27 @@ export default function WeeklyPlanPage() {
     }
   }
 
+  async function saveTask(event: FormEvent<HTMLFormElement>, taskId: number) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+
+    try {
+      await updateTask(taskId, {
+        title: String(form.get("title") ?? ""),
+        category: String(form.get("category") ?? "general"),
+        description: String(form.get("description") ?? "") || null,
+        estimated_hours: Number(form.get("estimatedHours") || 0) || null,
+        actual_hours: Number(form.get("actualHours") || 0) || null,
+        due_date: String(form.get("dueDate") ?? "") || null,
+        reason: String(form.get("reason") ?? "") || null
+      });
+      await loadPlans();
+      setStatus("작업 상세를 저장했습니다.");
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "작업 상세 저장에 실패했습니다.");
+    }
+  }
+
   async function changePlanStatus(planId: number, nextStatus: string) {
     try {
       await updateWeeklyPlan(planId, { status: nextStatus });
@@ -144,15 +165,29 @@ export default function WeeklyPlanPage() {
               </div>
               <div className="grid gap-3 p-5">
                 {plan.tasks.map((task) => (
-                  <button
-                    className="flex items-center justify-between rounded-md border p-3 text-left transition-colors hover:bg-muted"
-                    key={task.id}
-                    onClick={() => toggleTask(task.id, task.status)}
-                    type="button"
-                  >
-                    <span className="text-sm font-medium">{task.title}</span>
-                    <span className="text-xs text-muted-foreground">{task.status}</span>
-                  </button>
+                  <form className="grid gap-3 rounded-md border p-3" key={task.id} onSubmit={(event) => saveTask(event, task.id)}>
+                    <div className="grid gap-3 md:grid-cols-[1fr_140px_120px_120px]">
+                      <Input defaultValue={task.title} label="작업명" name="title" required />
+                      <Input defaultValue={task.category} label="카테고리" name="category" />
+                      <Input defaultValue={task.estimated_hours ?? ""} label="예상 시간" min="0" name="estimatedHours" step="0.25" type="number" />
+                      <Input defaultValue={task.actual_hours ?? ""} label="실제 시간" min="0" name="actualHours" step="0.25" type="number" />
+                    </div>
+                    <div className="grid gap-3 md:grid-cols-[160px_1fr_1fr]">
+                      <Input defaultValue={task.due_date ?? ""} label="마감일" name="dueDate" type="date" />
+                      <Input defaultValue={task.description ?? ""} label="설명" name="description" />
+                      <Input defaultValue={task.reason ?? ""} label="근거/메모" name="reason" />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <button
+                        className="rounded-md border px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted"
+                        onClick={() => toggleTask(task.id, task.status)}
+                        type="button"
+                      >
+                        {task.status === "done" ? "todo로 변경" : "done으로 변경"}
+                      </button>
+                      <Button type="submit">작업 저장</Button>
+                    </div>
+                  </form>
                 ))}
               </div>
             </article>

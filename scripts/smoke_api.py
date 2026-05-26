@@ -103,7 +103,19 @@ def main() -> None:
     weekly_delete_status = request_empty("DELETE", f"/weekly-plans/{weekly_delete_target['id']}")
 
     task_id = weekly["tasks"][0]["id"]
-    task = request_json("PATCH", f"/tasks/{task_id}", {"status": "done", "actual_hours": 1.25})
+    task = request_json(
+        "PATCH",
+        f"/tasks/{task_id}",
+        {
+            "title": "Updated smoke task",
+            "category": "portfolio",
+            "estimated_hours": 2,
+            "actual_hours": 1.25,
+            "due_date": "2026-05-28",
+            "reason": "task detail smoke check",
+            "status": "done",
+        },
+    )
     checkin = request_json(
         "POST",
         "/daily-checkins",
@@ -206,7 +218,7 @@ def main() -> None:
             f"id={weekly['id']},status={weekly_updated['status']},"
             f"tasks={len(weekly['tasks'])},deleteStatus={weekly_delete_status}"
         ),
-        "task_status": task["status"],
+        "task": f"title={task['title']},category={task['category']},status={task['status']},actual={task['actual_hours']}",
         "checkin": checkin["id"],
         "review": f"id={review['id']},completion={review['completion_rate']}",
         "ai": f"id={ai_accepted['id']},applied={ai_accepted['applied_resource_type']}#{ai_accepted['applied_resource_id']}",
