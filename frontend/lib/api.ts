@@ -276,14 +276,19 @@ export async function createAiSuggestion(planType: string): Promise<AiPlan> {
   return response.json();
 }
 
-export async function updateAiPlanDecision(planId: number, decisionStatus: string): Promise<AiPlan> {
+export async function updateAiPlanDecision(
+  planId: number,
+  decisionStatus: string,
+  parsedJson?: Record<string, unknown>
+): Promise<AiPlan> {
   const response = await fetch(`${API_BASE_URL}/ai-plans/${planId}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ decision_status: decisionStatus })
+    body: JSON.stringify({ decision_status: decisionStatus, parsed_json: parsedJson })
   });
   if (!response.ok) {
-    throw new Error("AI 제안 상태 저장에 실패했습니다.");
+    const detail = await response.json().catch(() => null);
+    throw new Error(detail?.detail ?? "AI 제안 상태 저장에 실패했습니다.");
   }
   return response.json();
 }

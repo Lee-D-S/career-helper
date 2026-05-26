@@ -102,6 +102,26 @@ def main() -> None:
 
     ai_roadmap = request_json("POST", "/ai-suggestions", {"plan_type": "roadmap"})
     ai_accepted = request_json("PATCH", f"/ai-plans/{ai_roadmap['id']}", {"decision_status": "accepted"})
+    ai_weekly = request_json("POST", "/ai-suggestions", {"plan_type": "weekly_plan"})
+    ai_edited = request_json(
+        "PATCH",
+        f"/ai-plans/{ai_weekly['id']}",
+        {
+            "decision_status": "edited",
+            "parsed_json": {
+                "weekly_goal": "Edited smoke weekly plan",
+                "tasks": [
+                    {
+                        "title": "Edit AI suggestion",
+                        "category": "portfolio",
+                        "estimated_hours": 1,
+                        "reason": "edited flow smoke check",
+                    }
+                ],
+            },
+        },
+    )
+    ai_edited_accepted = request_json("PATCH", f"/ai-plans/{ai_edited['id']}", {"decision_status": "accepted"})
 
     job = request_json(
         "POST",
@@ -142,6 +162,10 @@ def main() -> None:
         "checkin": checkin["id"],
         "review": f"id={review['id']},completion={review['completion_rate']}",
         "ai": f"id={ai_accepted['id']},applied={ai_accepted['applied_resource_type']}#{ai_accepted['applied_resource_id']}",
+        "ai_edited": (
+            f"id={ai_edited_accepted['id']},applied="
+            f"{ai_edited_accepted['applied_resource_type']}#{ai_edited_accepted['applied_resource_id']}"
+        ),
         "job": f"id={job_analyzed['id']},fit={job_analyzed['fit_score']},status={job_analyzed['status']}",
         "calendar": f"manual={event['id']},synced={len(synced)},icsStatus={ics_status}",
     }

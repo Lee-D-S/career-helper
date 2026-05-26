@@ -784,6 +784,13 @@ async def update_ai_plan_decision(
     if plan is None or plan.user_id != user_id:
         raise HTTPException(status_code=404, detail="AI plan not found")
 
+    if payload.parsed_json is not None:
+        plan.parsed_json = payload.parsed_json
+        plan.raw_response = str(payload.parsed_json)
+        plan.validation_status = "valid"
+    if payload.user_explanation is not None:
+        plan.user_explanation = payload.user_explanation
+
     plan.decision_status = payload.decision_status
     if payload.decision_status == "accepted":
         if plan.validation_status != "valid":

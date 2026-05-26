@@ -10,6 +10,8 @@ class AiSuggestionCreate(BaseModel):
 
 class AiPlanDecisionUpdate(BaseModel):
     decision_status: str
+    parsed_json: dict[str, Any] | None = None
+    user_explanation: str | None = None
 
 
 class AiPlanRead(BaseModel):

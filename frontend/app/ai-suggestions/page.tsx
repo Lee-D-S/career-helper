@@ -15,10 +15,15 @@ const suggestionTypes = [
 
 export default function AiSuggestionsPage() {
   const [plans, setPlans] = useState<AiPlan[]>([]);
+  const [drafts, setDrafts] = useState<Record<number, string>>({});
   const [status, setStatus] = useState<string | null>(null);
 
   async function loadPlans() {
-    setPlans(await getAiPlans());
+    const data = await getAiPlans();
+    setPlans(data);
+    setDrafts(
+      Object.fromEntries(data.map((plan) => [plan.id, JSON.stringify(plan.parsed_json ?? {}, null, 2)]))
+    );
   }
 
   useEffect(() => {
@@ -42,6 +47,17 @@ export default function AiSuggestionsPage() {
       setStatus("AI 제안 상태를 저장했습니다.");
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "AI 제안 상태 저장에 실패했습니다.");
+    }
+  }
+
+  async function saveEdited(plan: AiPlan) {
+    try {
+      const parsed = JSON.parse(drafts[plan.id] ?? "{}") as Record<string, unknown>;
+      await updateAiPlanDecision(plan.id, "edited", parsed);
+      await loadPlans();
+      setStatus("수정한 AI 제안을 저장했습니다.");
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "수정한 AI 제안 저장에 실패했습니다.");
     }
   }
 
@@ -77,7 +93,12 @@ export default function AiSuggestionsPage() {
                   <p className="text-sm text-muted-foreground">{plan.user_explanation}</p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-sm text-muted-foreground">{plan.decision_status}</span>
+                  <span className="text-sm text-muted-foreground">
+                    {plan.validation_status}/{plan.decision_status}
+                  </span>
+                  <Button onClick={() => saveEdited(plan)} type="button" variant="secondary">
+                    수정본 저장
+                  </Button>
                   <Button onClick={() => decide(plan.id, "accepted")} type="button">
                     승인/반영
                   </Button>
@@ -91,9 +112,13 @@ export default function AiSuggestionsPage() {
                   반영됨: {plan.applied_resource_type} #{plan.applied_resource_id}
                 </div>
               ) : null}
-              <pre className="overflow-auto p-5 text-sm text-muted-foreground">
-                {JSON.stringify(plan.parsed_json, null, 2)}
-              </pre>
+              <div className="p-5">
+                <textarea
+                  className="min-h-56 w-full resize-y rounded-md border bg-background p-3 font-mono text-sm text-muted-foreground"
+                  onChange={(event) => setDrafts((current) => ({ ...current, [plan.id]: event.target.value }))}
+                  value={drafts[plan.id] ?? ""}
+                />
+              </div>
             </article>
           ))}
         </section>
