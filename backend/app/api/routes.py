@@ -251,6 +251,38 @@ async def _apply_ai_plan(db: AsyncSession, plan: AiPlan) -> tuple[str | None, in
         }
         return "weekly_plan", weekly_plan.id
 
+    if plan.plan_type == "weekly_review":
+        latest_plan = await db.scalar(
+            select(WeeklyPlan)
+            .where(WeeklyPlan.user_id == plan.user_id)
+            .order_by(WeeklyPlan.week_start.desc(), WeeklyPlan.id.desc())
+        )
+        if latest_plan is None:
+            raise HTTPException(status_code=400, detail="Weekly plan is required before applying a weekly review")
+
+        review = await db.scalar(select(WeeklyReview).where(WeeklyReview.weekly_plan_id == latest_plan.id))
+        if review is None:
+            review = WeeklyReview(user_id=plan.user_id, weekly_plan_id=latest_plan.id)
+            db.add(review)
+
+        questions = plan.parsed_json.get("review_questions", [])
+        if isinstance(questions, list):
+            priority_adjustments = "\n".join(str(question) for question in questions)
+        else:
+            priority_adjustments = str(questions) if questions else None
+
+        review.completion_rate = await _calculate_completion_rate(db, latest_plan.id)
+        review.summary = str(plan.parsed_json.get("summary") or "AI 주간 회고 초안")
+        review.priority_adjustments = priority_adjustments
+
+        await db.flush()
+        plan.parsed_json = {
+            **plan.parsed_json,
+            "applied_resource_type": "weekly_review",
+            "applied_resource_id": review.id,
+        }
+        return "weekly_review", review.id
+
     return None, None
 
 

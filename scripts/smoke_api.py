@@ -122,6 +122,8 @@ def main() -> None:
         },
     )
     ai_edited_accepted = request_json("PATCH", f"/ai-plans/{ai_edited['id']}", {"decision_status": "accepted"})
+    ai_review = request_json("POST", "/ai-suggestions", {"plan_type": "weekly_review"})
+    ai_review_accepted = request_json("PATCH", f"/ai-plans/{ai_review['id']}", {"decision_status": "accepted"})
 
     job = request_json(
         "POST",
@@ -165,6 +167,10 @@ def main() -> None:
         "ai_edited": (
             f"id={ai_edited_accepted['id']},applied="
             f"{ai_edited_accepted['applied_resource_type']}#{ai_edited_accepted['applied_resource_id']}"
+        ),
+        "ai_review": (
+            f"id={ai_review_accepted['id']},applied="
+            f"{ai_review_accepted['applied_resource_type']}#{ai_review_accepted['applied_resource_id']}"
         ),
         "job": f"id={job_analyzed['id']},fit={job_analyzed['fit_score']},status={job_analyzed['status']}",
         "calendar": f"manual={event['id']},synced={len(synced)},icsStatus={ics_status}",
