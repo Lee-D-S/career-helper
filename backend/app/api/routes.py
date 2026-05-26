@@ -27,7 +27,7 @@ from app.schemas.plans import (
     WeeklyPlanCreate,
     WeeklyPlanRead,
 )
-from app.services.ai_provider import get_ai_provider
+from app.services.ai_provider import AIProviderError, MockProvider, get_ai_provider
 from app.services.onboarding import save_onboarding
 
 router = APIRouter()
@@ -556,30 +556,39 @@ async def list_ai_plans(db: AsyncSession = Depends(get_db)) -> list[AiPlanRead]:
 @router.post("/ai-suggestions", response_model=AiPlanRead)
 async def create_ai_suggestion(payload: AiSuggestionCreate, db: AsyncSession = Depends(get_db)) -> AiPlanRead:
     user_id = get_settings().default_user_id
-    provider = get_ai_provider()
-
-    if payload.plan_type == "roadmap":
-        parsed = await provider.generate_roadmap()
-        explanation = "현재 목표 직무와 부족 역량을 기준으로 로드맵 초안을 생성했습니다."
-    elif payload.plan_type == "weekly_plan":
-        parsed = await provider.generate_weekly_plan()
-        explanation = "이번 주 실행 가능한 산출물 중심으로 주간 계획 초안을 생성했습니다."
-    elif payload.plan_type == "weekly_review":
-        parsed = await provider.generate_weekly_review()
-        explanation = "주간 회고에서 확인해야 할 기준과 요약 초안을 생성했습니다."
-    elif payload.plan_type == "job_posting":
-        parsed = await provider.analyze_job_posting()
-        explanation = "공고 분석 초안을 생성했습니다."
-    else:
-        raise HTTPException(status_code=400, detail="Unsupported suggestion type")
+    try:
+        provider = get_ai_provider()
+        if payload.plan_type == "roadmap":
+            parsed = await provider.generate_roadmap()
+            explanation = "현재 목표 직무와 부족 역량을 기준으로 로드맵 초안을 생성했습니다."
+        elif payload.plan_type == "weekly_plan":
+            parsed = await provider.generate_weekly_plan()
+            explanation = "이번 주 실행 가능한 산출물 중심으로 주간 계획 초안을 생성했습니다."
+        elif payload.plan_type == "weekly_review":
+            parsed = await provider.generate_weekly_review()
+            explanation = "주간 회고에서 확인해야 할 기준과 요약 초안을 생성했습니다."
+        elif payload.plan_type == "job_posting":
+            parsed = await provider.analyze_job_posting()
+            explanation = "공고 분석 초안을 생성했습니다."
+        else:
+            raise HTTPException(status_code=400, detail="Unsupported suggestion type")
+        raw_response = str(parsed)
+        validation_status = "valid"
+    except AIProviderError as exc:
+        if payload.plan_type not in {"roadmap", "weekly_plan", "weekly_review", "job_posting"}:
+            raise HTTPException(status_code=400, detail="Unsupported suggestion type") from exc
+        parsed = {"error": str(exc), "manual_fallback": True}
+        raw_response = str(exc)
+        explanation = "AI 제안 생성에 실패했습니다. 수동 작성 화면에서 계속 진행할 수 있습니다."
+        validation_status = "invalid"
 
     plan = AiPlan(
         user_id=user_id,
         plan_type=payload.plan_type,
-        raw_response=str(parsed),
+        raw_response=raw_response,
         parsed_json=parsed,
         user_explanation=explanation,
-        validation_status="valid",
+        validation_status=validation_status,
         decision_status="suggested",
     )
     db.add(plan)
@@ -624,8 +633,11 @@ async def analyze_job_posting(job_id: int, db: AsyncSession = Depends(get_db)) -
     if job is None or job.user_id != user_id:
         raise HTTPException(status_code=404, detail="Job posting not found")
 
-    provider = get_ai_provider()
-    analysis = await provider.analyze_job_posting(job.raw_content or job.source_url)
+    try:
+        provider = get_ai_provider()
+        analysis = await provider.analyze_job_posting(job.raw_content or job.source_url)
+    except AIProviderError:
+        analysis = await MockProvider().analyze_job_posting(job.raw_content or job.source_url)
     job.summary = analysis.get("summary")
     job.fit_score = analysis.get("fit_score")
     job.required_skills = analysis.get("required_skills", [])
@@ -774,6 +786,8 @@ async def update_ai_plan_decision(
 
     plan.decision_status = payload.decision_status
     if payload.decision_status == "accepted":
+        if plan.validation_status != "valid":
+            raise HTTPException(status_code=400, detail="Invalid AI plan cannot be accepted")
         await _apply_ai_plan(db, plan)
     await db.commit()
     await db.refresh(plan)

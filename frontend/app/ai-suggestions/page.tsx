@@ -50,7 +50,7 @@ export default function AiSuggestionsPage() {
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-6 py-6">
         <header className="flex flex-col gap-3 border-b pb-5 md:flex-row md:items-end md:justify-between">
           <div>
-            <p className="text-sm font-medium text-muted-foreground">MockProvider</p>
+            <p className="text-sm font-medium text-muted-foreground">Provider 설정 기반</p>
             <h1 className="mt-1 text-3xl font-semibold">AI 제안</h1>
           </div>
           <Link className="rounded-md bg-muted px-3 py-2 text-sm font-medium" href="/">

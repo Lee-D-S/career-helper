@@ -41,6 +41,14 @@ copy .env.example .env
 rtk docker compose up --build
 ```
 
+Gemini를 실제 AI 제공자로 사용하려면 `.env`에서 다음 값을 설정한다.
+
+```bash
+AI_PROVIDER=gemini
+GEMINI_API_KEY=your-api-key
+GEMINI_MODEL=gemini-2.0-flash
+```
+
 백그라운드 실행 후 API 흐름을 검증하려면:
 
 ```bash
@@ -58,7 +66,7 @@ rtk python -c "exec(open('scripts/smoke_api.py', encoding='utf-8').read())"
 6. `/weekly-plan`에서 이번 주 작업 계획을 만들고 완료 상태를 바꾼다.
 7. `/check-in`에서 일일 투입 시간, 완료한 작업, 막힌 점을 기록한다.
 8. `/weekly-review`에서 주간 계획의 실행률과 다음 주 조정 내용을 기록한다.
-9. `/ai-suggestions`에서 MockProvider 기반 AI 제안을 만들고 승인/거절한다.
+9. `/ai-suggestions`에서 설정된 AI Provider 기반 제안을 만들고 승인/거절한다.
 10. 승인한 로드맵/주간 계획 제안은 실제 로드맵/주간 계획 데이터로 반영된다.
-11. `/job-postings`에서 공고 URL/본문을 저장하고 MockProvider로 요구 역량과 준비 액션을 분석한다.
+11. `/job-postings`에서 공고 URL/본문을 저장하고 요구 역량과 준비 액션을 분석한다.
 12. `/calendar`에서 일정을 만들고 작업/공고 마감일을 동기화한 뒤 `.ics`로 내보낸다.

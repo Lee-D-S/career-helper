@@ -1,4 +1,17 @@
+import asyncio
+import json
 from typing import Any, Protocol
+from urllib.error import HTTPError, URLError
+from urllib.request import Request, urlopen
+
+from app.core.config import get_settings
+
+
+GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+
+
+class AIProviderError(RuntimeError):
+    pass
 
 
 class AIProvider(Protocol):
@@ -95,5 +108,180 @@ class MockProvider:
         }
 
 
+class GeminiProvider:
+    def __init__(self, api_key: str, model: str) -> None:
+        self.api_key = api_key
+        self.model = model
+
+    async def generate_roadmap(self) -> dict[str, Any]:
+        return await self._generate_json(
+            """
+사용자의 취업 준비를 돕기 위한 1개월 로드맵을 생성해줘.
+금융 IT 풀스택, 백엔드/API, DB/SQL, 포트폴리오 강화 관점으로 작성해.
+각 항목은 바로 실행 가능한 산출물 중심이어야 해.
+""",
+            {
+                "type": "OBJECT",
+                "properties": {
+                    "monthly_goal": {"type": "STRING"},
+                    "items": {
+                        "type": "ARRAY",
+                        "items": {
+                            "type": "OBJECT",
+                            "properties": {
+                                "title": {"type": "STRING"},
+                                "reason": {"type": "STRING"},
+                                "priority": {"type": "INTEGER"},
+                            },
+                            "required": ["title", "reason", "priority"],
+                        },
+                    },
+                },
+                "required": ["monthly_goal", "items"],
+            },
+            required_keys=["monthly_goal", "items"],
+        )
+
+    async def generate_weekly_plan(self) -> dict[str, Any]:
+        return await self._generate_json(
+            """
+이번 주 취업 준비 실행 계획을 생성해줘.
+포트폴리오, SQL, 코딩테스트, 서류/면접 중 우선순위를 골라 과하게 많지 않은 작업으로 작성해.
+각 작업은 예상 시간을 포함해야 해.
+""",
+            {
+                "type": "OBJECT",
+                "properties": {
+                    "weekly_goal": {"type": "STRING"},
+                    "tasks": {
+                        "type": "ARRAY",
+                        "items": {
+                            "type": "OBJECT",
+                            "properties": {
+                                "title": {"type": "STRING"},
+                                "category": {"type": "STRING"},
+                                "estimated_hours": {"type": "NUMBER"},
+                                "reason": {"type": "STRING"},
+                            },
+                            "required": ["title", "category", "estimated_hours", "reason"],
+                        },
+                    },
+                },
+                "required": ["weekly_goal", "tasks"],
+            },
+            required_keys=["weekly_goal", "tasks"],
+        )
+
+    async def generate_weekly_review(self) -> dict[str, Any]:
+        return await self._generate_json(
+            """
+취업 준비 주간 회고 초안을 생성해줘.
+계획 대비 실행률, 미완료 원인, 다음 주 조정 기준을 점검할 수 있게 작성해.
+""",
+            {
+                "type": "OBJECT",
+                "properties": {
+                    "summary": {"type": "STRING"},
+                    "review_questions": {"type": "ARRAY", "items": {"type": "STRING"}},
+                },
+                "required": ["summary", "review_questions"],
+            },
+            required_keys=["summary", "review_questions"],
+        )
+
+    async def analyze_job_posting(self, content: str | None = None) -> dict[str, Any]:
+        posting = content or "공고 본문이 제공되지 않았습니다."
+        return await self._generate_json(
+            f"""
+다음 채용 공고를 취업 준비 관점에서 분석해줘.
+지원자는 금융 IT 풀스택/백엔드 직무를 준비하고 있고, Python/FastAPI, SQL, 포트폴리오 프로젝트를 강화 중이야.
+
+공고:
+{posting}
+""",
+            {
+                "type": "OBJECT",
+                "properties": {
+                    "summary": {"type": "STRING"},
+                    "fit_score": {"type": "NUMBER"},
+                    "required_skills": {"type": "ARRAY", "items": {"type": "STRING"}},
+                    "recommended_actions": {"type": "ARRAY", "items": {"type": "STRING"}},
+                },
+                "required": ["summary", "fit_score", "required_skills", "recommended_actions"],
+            },
+            required_keys=["summary", "fit_score", "required_skills", "recommended_actions"],
+        )
+
+    async def _generate_json(
+        self,
+        prompt: str,
+        response_schema: dict[str, Any],
+        required_keys: list[str],
+    ) -> dict[str, Any]:
+        raw = await asyncio.to_thread(self._request, prompt.strip(), response_schema)
+        text = self._extract_text(raw)
+        try:
+            parsed = json.loads(text)
+        except json.JSONDecodeError as exc:
+            raise AIProviderError("Gemini returned invalid JSON") from exc
+        if not isinstance(parsed, dict):
+            raise AIProviderError("Gemini returned a non-object JSON response")
+        missing = [key for key in required_keys if key not in parsed]
+        if missing:
+            raise AIProviderError(f"Gemini response missing keys: {', '.join(missing)}")
+        return parsed
+
+    def _request(self, prompt: str, response_schema: dict[str, Any]) -> dict[str, Any]:
+        body = {
+            "system_instruction": {
+                "parts": {
+                    "text": (
+                        "너는 한국어 취업 준비 코치다. 반드시 요청한 JSON schema에 맞는 JSON만 반환한다. "
+                        "마크다운 코드블록이나 설명 문장은 쓰지 않는다."
+                    )
+                }
+            },
+            "contents": [{"role": "user", "parts": [{"text": prompt}]}],
+            "generationConfig": {
+                "temperature": 0.4,
+                "response_mime_type": "application/json",
+                "response_schema": response_schema,
+            },
+        }
+        request = Request(
+            GEMINI_API_URL.format(model=self.model),
+            data=json.dumps(body, ensure_ascii=False).encode("utf-8"),
+            method="POST",
+            headers={
+                "Content-Type": "application/json; charset=utf-8",
+                "x-goog-api-key": self.api_key,
+            },
+        )
+        try:
+            with urlopen(request, timeout=30) as response:
+                return json.loads(response.read().decode("utf-8"))
+        except HTTPError as exc:
+            detail = exc.read().decode("utf-8", errors="replace")
+            raise AIProviderError(f"Gemini API request failed: HTTP {exc.code} {detail}") from exc
+        except (URLError, TimeoutError) as exc:
+            raise AIProviderError(f"Gemini API request failed: {exc}") from exc
+
+    def _extract_text(self, payload: dict[str, Any]) -> str:
+        try:
+            parts = payload["candidates"][0]["content"]["parts"]
+        except (KeyError, IndexError, TypeError) as exc:
+            raise AIProviderError("Gemini response did not include candidate text") from exc
+        texts = [part.get("text", "") for part in parts if isinstance(part, dict)]
+        text = "".join(texts).strip()
+        if not text:
+            raise AIProviderError("Gemini response text was empty")
+        return text
+
+
 def get_ai_provider() -> AIProvider:
+    settings = get_settings()
+    if settings.ai_provider.lower() == "gemini":
+        if not settings.gemini_api_key:
+            raise AIProviderError("GEMINI_API_KEY is required when AI_PROVIDER=gemini")
+        return GeminiProvider(settings.gemini_api_key, settings.gemini_model)
     return MockProvider()

@@ -8,6 +8,7 @@ class Settings(BaseSettings):
     default_user_id: int = 1
     ai_provider: str = "mock"
     gemini_api_key: str | None = None
+    gemini_model: str = "gemini-2.0-flash"
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

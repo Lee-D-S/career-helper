@@ -46,13 +46,14 @@ Phase 7: 포트폴리오 정리/배포 준비
 - 작업 완료율 기반 주간 실행률 계산
 - AIProvider 인터페이스
 - MockProvider
+- GeminiProvider
 - AI 제안 생성 API
 - AI 제안 목록/상태 변경 API
 - AI 제안 화면
 - accepted AI 로드맵 제안을 실제 Roadmap/RoadmapItem으로 반영
 - accepted AI 주간 계획 제안을 실제 WeeklyPlan/Task로 반영
 - 공고 저장/조회 API
-- MockProvider 기반 공고 분석 API
+- AI Provider 기반 공고 분석 API
 - 공고 저장/분석 화면
 - 캘린더 일정 생성/조회 API
 - 작업/공고 마감일 캘린더 동기화 API
@@ -62,10 +63,10 @@ Phase 7: 포트폴리오 정리/배포 준비
 - API 스모크 테스트 스크립트
 
 진행 중:
-- GeminiProvider 구현 준비
+- 사용자 수정 상태 edited 처리
 
 아직 미구현:
-- Gemini Provider
+- 주간 회고 제안 실제 회고 초안 반영
 ```
 
 ## 3. Phase별 상세 상태
@@ -94,6 +95,7 @@ Backend: Python + FastAPI
 DB: PostgreSQL
 ORM/Migration: SQLAlchemy + Alembic
 AI: Gemini 무료 티어 + MockProvider, 추후 유료 Provider 확장
+AI Provider 선택: `AI_PROVIDER=mock|gemini`
 배포: 로컬 우선 + Docker Compose, 추후 AWS EC2 또는 Lightsail
 ```
 
@@ -234,10 +236,15 @@ POST /api/weekly-reviews
 ```text
 AIProvider 인터페이스
 MockProvider
+GeminiProvider
 GET /api/ai-plans
 POST /api/ai-suggestions
 PATCH /api/ai-plans/{plan_id}
-로드맵/주간 계획/주간 회고/공고 분석 Mock 제안 생성
+로드맵/주간 계획/주간 회고/공고 분석 제안 생성
+Gemini 구조화 JSON 응답 검증
+AI 제안 생성 실패 시 invalid 제안으로 수동 fallback 저장
+공고 본문 기반 Gemini 분석 입력
+공고 분석 Gemini 실패 시 MockProvider fallback
 AI 제안 승인/거절 상태 변경
 AI 제안 화면
 승인한 로드맵 제안 실제 로드맵 반영
@@ -247,11 +254,7 @@ AI 제안 화면
 남은 작업:
 
 ```text
-GeminiProvider
-구조화 JSON 응답 검증
-AI 실패 시 수동 fallback
 사용자 수정 상태 edited 처리
-공고 본문 기반 분석 입력
 주간 회고 제안 실제 회고 초안 반영
 ```
 
@@ -266,8 +269,10 @@ GET /api/job-postings
 POST /api/job-postings
 POST /api/job-postings/{job_id}/analyze
 공고 URL/본문 저장
-MockProvider 기반 공고 요약/분류
+AI Provider 기반 공고 요약/분류
 공고 저장/분석 화면
+GeminiProvider 기반 공고 본문 분석
+Gemini 실패 시 MockProvider fallback
 GET /api/calendar-events
 POST /api/calendar-events
 POST /api/calendar-events/sync
@@ -282,7 +287,6 @@ GET /api/calendar-events.ics
 ```text
 공고 수정/삭제
 공고 상태 변경
-실제 Gemini 기반 공고 분석
 캘린더 일정 수정/삭제
 월간/주간 캘린더 그리드 UI
 ```
@@ -302,18 +306,16 @@ AWS EC2 또는 Lightsail 배포 검토
 
 ## 4. 다음 추천 작업
 
-가장 가까운 다음 작업은 Phase 5 AI 코칭 기반을 실제 GeminiProvider로 확장하는 것이다.
+가장 가까운 다음 작업은 AI 제안 결과를 사용자가 수정한 뒤 반영할 수 있게 edited 흐름을 완성하는 것이다.
 
 우선순위:
 
 ```text
-1. GeminiProvider 구현
-2. 구조화 JSON 응답 검증
-3. AI 실패 시 수동 fallback
-4. 공고 본문 기반 Gemini 분석 입력
-5. 사용자 수정 상태 edited 처리
-6. 주간 회고 제안 실제 회고 초안 반영
-7. 로드맵/주간 계획/공고/캘린더 수정·삭제 보강
+1. 사용자 수정 상태 edited 처리
+2. 주간 회고 제안 실제 회고 초안 반영
+3. Gemini 실제 키 검증
+4. 로드맵/주간 계획/공고/캘린더 수정·삭제 보강
+5. 캘린더 월간/주간 그리드 UI
 ```
 
 ## 5. 갱신 규칙
