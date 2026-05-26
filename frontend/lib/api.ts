@@ -184,6 +184,39 @@ export async function createRoadmap(payload: unknown): Promise<Roadmap> {
   return response.json();
 }
 
+export async function updateRoadmap(roadmapId: number, payload: Partial<Roadmap>): Promise<Roadmap> {
+  const response = await fetch(`${API_BASE_URL}/roadmaps/${roadmapId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  if (!response.ok) {
+    throw new Error("로드맵 저장에 실패했습니다.");
+  }
+  return response.json();
+}
+
+export async function deleteRoadmap(roadmapId: number): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/roadmaps/${roadmapId}`, {
+    method: "DELETE"
+  });
+  if (!response.ok) {
+    throw new Error("로드맵 삭제에 실패했습니다.");
+  }
+}
+
+export async function updateRoadmapItem(itemId: number, payload: Partial<RoadmapItem>): Promise<RoadmapItem> {
+  const response = await fetch(`${API_BASE_URL}/roadmap-items/${itemId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  if (!response.ok) {
+    throw new Error("로드맵 항목 저장에 실패했습니다.");
+  }
+  return response.json();
+}
+
 export async function getWeeklyPlans(): Promise<WeeklyPlan[]> {
   const response = await fetch(`${API_BASE_URL}/weekly-plans`, { cache: "no-store" });
   if (!response.ok) {
@@ -202,6 +235,27 @@ export async function createWeeklyPlan(payload: unknown): Promise<WeeklyPlan> {
     throw new Error("주간 계획 저장에 실패했습니다.");
   }
   return response.json();
+}
+
+export async function updateWeeklyPlan(planId: number, payload: Partial<WeeklyPlan>): Promise<WeeklyPlan> {
+  const response = await fetch(`${API_BASE_URL}/weekly-plans/${planId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  if (!response.ok) {
+    throw new Error("주간 계획 저장에 실패했습니다.");
+  }
+  return response.json();
+}
+
+export async function deleteWeeklyPlan(planId: number): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/weekly-plans/${planId}`, {
+    method: "DELETE"
+  });
+  if (!response.ok) {
+    throw new Error("주간 계획 삭제에 실패했습니다.");
+  }
 }
 
 export async function updateTask(taskId: number, payload: Partial<Task>): Promise<Task> {

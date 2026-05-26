@@ -36,6 +36,23 @@ class RoadmapRead(BaseModel):
     items: list[RoadmapItemRead]
 
 
+class RoadmapUpdate(BaseModel):
+    title: str | None = None
+    track_id: int | None = None
+    start_date: date | None = None
+    end_date: date | None = None
+    status: str | None = None
+
+
+class RoadmapItemUpdate(BaseModel):
+    title: str | None = None
+    description: str | None = None
+    start_date: date | None = None
+    end_date: date | None = None
+    priority: int | None = None
+    status: str | None = None
+
+
 class TaskCreate(BaseModel):
     title: str
     category: str = "general"
@@ -69,6 +86,14 @@ class WeeklyPlanRead(BaseModel):
     week_end: date
     status: str
     tasks: list[TaskRead]
+
+
+class WeeklyPlanUpdate(BaseModel):
+    title: str | None = None
+    track_id: int | None = None
+    week_start: date | None = None
+    week_end: date | None = None
+    status: str | None = None
 
 
 class TaskUpdate(BaseModel):

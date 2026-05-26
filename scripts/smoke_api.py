@@ -61,6 +61,14 @@ def main() -> None:
             "items": [{"title": "Portfolio cleanup", "priority": 1, "status": "todo"}],
         },
     )
+    roadmap_updated = request_json("PATCH", f"/roadmaps/{roadmap['id']}", {"status": "done"})
+    roadmap_item_updated = request_json("PATCH", f"/roadmap-items/{roadmap['items'][0]['id']}", {"status": "done"})
+    roadmap_delete_target = request_json(
+        "POST",
+        "/roadmaps",
+        {"title": "Delete Smoke Roadmap", "items": [{"title": "Delete roadmap item", "priority": 1}]},
+    )
+    roadmap_delete_status = request_empty("DELETE", f"/roadmaps/{roadmap_delete_target['id']}")
 
     weekly = request_json(
         "POST",
@@ -81,6 +89,18 @@ def main() -> None:
             ],
         },
     )
+    weekly_updated = request_json("PATCH", f"/weekly-plans/{weekly['id']}", {"status": "done"})
+    weekly_delete_target = request_json(
+        "POST",
+        "/weekly-plans",
+        {
+            "title": "Delete Smoke Weekly Plan",
+            "week_start": "2026-05-25",
+            "week_end": "2026-05-31",
+            "tasks": [{"title": "Delete weekly task", "category": "general"}],
+        },
+    )
+    weekly_delete_status = request_empty("DELETE", f"/weekly-plans/{weekly_delete_target['id']}")
 
     task_id = weekly["tasks"][0]["id"]
     task = request_json("PATCH", f"/tasks/{task_id}", {"status": "done", "actual_hours": 1.25})
@@ -178,8 +198,14 @@ def main() -> None:
         "onboarding": f"user={onboarding['user_id']},tracks={onboarding['track_count']},axes={onboarding['axis_count']}",
         "dashboard_track": dashboard["target_track"],
         "score_updated": score["id"],
-        "roadmap": f"id={roadmap['id']},items={len(roadmap['items'])}",
-        "weekly_plan": f"id={weekly['id']},tasks={len(weekly['tasks'])}",
+        "roadmap": (
+            f"id={roadmap['id']},status={roadmap_updated['status']},"
+            f"itemStatus={roadmap_item_updated['status']},deleteStatus={roadmap_delete_status}"
+        ),
+        "weekly_plan": (
+            f"id={weekly['id']},status={weekly_updated['status']},"
+            f"tasks={len(weekly['tasks'])},deleteStatus={weekly_delete_status}"
+        ),
         "task_status": task["status"],
         "checkin": checkin["id"],
         "review": f"id={review['id']},completion={review['completion_rate']}",

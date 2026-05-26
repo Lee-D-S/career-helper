@@ -2,6 +2,7 @@ from datetime import date, datetime, time, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy import select
+from sqlalchemy import delete as sqla_delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
@@ -21,11 +22,14 @@ from app.schemas.onboarding import OnboardingInput, OnboardingResponse
 from app.schemas.plans import (
     RoadmapCreate,
     RoadmapItemRead,
+    RoadmapItemUpdate,
     RoadmapRead,
+    RoadmapUpdate,
     TaskRead,
     TaskUpdate,
     WeeklyPlanCreate,
     WeeklyPlanRead,
+    WeeklyPlanUpdate,
 )
 from app.services.ai_provider import AIProviderError, MockProvider, get_ai_provider
 from app.services.onboarding import save_onboarding
@@ -440,6 +444,68 @@ async def create_roadmap(payload: RoadmapCreate, db: AsyncSession = Depends(get_
     return _roadmap_read(roadmap, items)
 
 
+@router.patch("/roadmaps/{roadmap_id}", response_model=RoadmapRead)
+async def update_roadmap(roadmap_id: int, payload: RoadmapUpdate, db: AsyncSession = Depends(get_db)) -> RoadmapRead:
+    user_id = get_settings().default_user_id
+    roadmap = await db.get(Roadmap, roadmap_id)
+    if roadmap is None or roadmap.user_id != user_id:
+        raise HTTPException(status_code=404, detail="Roadmap not found")
+
+    for field, value in payload.model_dump(exclude_unset=True).items():
+        setattr(roadmap, field, value)
+
+    await db.commit()
+    await db.refresh(roadmap)
+    items_result = await db.execute(
+        select(RoadmapItem).where(RoadmapItem.roadmap_id == roadmap.id).order_by(RoadmapItem.priority, RoadmapItem.id)
+    )
+    return _roadmap_read(roadmap, list(items_result.scalars()))
+
+
+@router.delete("/roadmaps/{roadmap_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_roadmap(roadmap_id: int, db: AsyncSession = Depends(get_db)) -> Response:
+    user_id = get_settings().default_user_id
+    roadmap = await db.get(Roadmap, roadmap_id)
+    if roadmap is None or roadmap.user_id != user_id:
+        raise HTTPException(status_code=404, detail="Roadmap not found")
+
+    await db.execute(sqla_delete(RoadmapItem).where(RoadmapItem.roadmap_id == roadmap.id))
+    await db.delete(roadmap)
+    await db.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.patch("/roadmap-items/{item_id}", response_model=RoadmapItemRead)
+async def update_roadmap_item(
+    item_id: int,
+    payload: RoadmapItemUpdate,
+    db: AsyncSession = Depends(get_db),
+) -> RoadmapItemRead:
+    user_id = get_settings().default_user_id
+    item = await db.get(RoadmapItem, item_id)
+    if item is None:
+        raise HTTPException(status_code=404, detail="Roadmap item not found")
+    roadmap = await db.get(Roadmap, item.roadmap_id)
+    if roadmap is None or roadmap.user_id != user_id:
+        raise HTTPException(status_code=404, detail="Roadmap item not found")
+
+    for field, value in payload.model_dump(exclude_unset=True).items():
+        setattr(item, field, value)
+
+    await db.commit()
+    await db.refresh(item)
+    return RoadmapItemRead(
+        id=item.id,
+        roadmap_id=item.roadmap_id,
+        title=item.title,
+        description=item.description,
+        start_date=item.start_date,
+        end_date=item.end_date,
+        priority=item.priority,
+        status=item.status,
+    )
+
+
 @router.get("/weekly-plans", response_model=list[WeeklyPlanRead])
 async def list_weekly_plans(db: AsyncSession = Depends(get_db)) -> list[WeeklyPlanRead]:
     user_id = get_settings().default_user_id
@@ -488,6 +554,42 @@ async def create_weekly_plan(payload: WeeklyPlanCreate, db: AsyncSession = Depen
     for task in tasks:
         await db.refresh(task)
     return _weekly_plan_read(plan, tasks)
+
+
+@router.patch("/weekly-plans/{plan_id}", response_model=WeeklyPlanRead)
+async def update_weekly_plan(plan_id: int, payload: WeeklyPlanUpdate, db: AsyncSession = Depends(get_db)) -> WeeklyPlanRead:
+    user_id = get_settings().default_user_id
+    plan = await db.get(WeeklyPlan, plan_id)
+    if plan is None or plan.user_id != user_id:
+        raise HTTPException(status_code=404, detail="Weekly plan not found")
+
+    for field, value in payload.model_dump(exclude_unset=True).items():
+        setattr(plan, field, value)
+
+    await db.commit()
+    await db.refresh(plan)
+    tasks_result = await db.execute(select(Task).where(Task.weekly_plan_id == plan.id).order_by(Task.due_date, Task.id))
+    return _weekly_plan_read(plan, list(tasks_result.scalars()))
+
+
+@router.delete("/weekly-plans/{plan_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_weekly_plan(plan_id: int, db: AsyncSession = Depends(get_db)) -> Response:
+    user_id = get_settings().default_user_id
+    plan = await db.get(WeeklyPlan, plan_id)
+    if plan is None or plan.user_id != user_id:
+        raise HTTPException(status_code=404, detail="Weekly plan not found")
+
+    task_ids_result = await db.execute(select(Task.id).where(Task.weekly_plan_id == plan.id))
+    task_ids = list(task_ids_result.scalars())
+    if task_ids:
+        await db.execute(
+            sqla_delete(CalendarEvent).where(CalendarEvent.source_type == "task", CalendarEvent.source_id.in_(task_ids))
+        )
+    await db.execute(sqla_delete(WeeklyReview).where(WeeklyReview.weekly_plan_id == plan.id))
+    await db.execute(sqla_delete(Task).where(Task.weekly_plan_id == plan.id))
+    await db.delete(plan)
+    await db.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.patch("/tasks/{task_id}", response_model=TaskRead)

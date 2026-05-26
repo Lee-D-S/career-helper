@@ -35,8 +35,11 @@ Phase 7: 포트폴리오 정리/배포 준비
 - 역량 점수 수정 API
 - 역량 점수 수정 화면
 - 로드맵 생성/조회 API
+- 로드맵 수정/삭제 API
+- 로드맵 항목 상태 수정 API
 - 로드맵 화면
 - 주간 계획 생성/조회 API
+- 주간 계획 수정/삭제 API
 - 작업 상태 수정 API
 - 주간 계획 화면
 - 일일 체크인 생성/조회 API
@@ -185,11 +188,19 @@ TrackCompetencyScore 모델
 ```text
 GET /api/roadmaps
 POST /api/roadmaps
+PATCH /api/roadmaps/{roadmap_id}
+DELETE /api/roadmaps/{roadmap_id}
+PATCH /api/roadmap-items/{item_id}
 GET /api/weekly-plans
 POST /api/weekly-plans
+PATCH /api/weekly-plans/{plan_id}
+DELETE /api/weekly-plans/{plan_id}
 PATCH /api/tasks/{task_id}
 로드맵 생성/조회 화면
+로드맵 상태 변경/삭제
+로드맵 항목 상태 변경
 주간 계획 생성/조회 화면
+주간 계획 상태 변경/삭제
 작업 todo/done 상태 변경
 이번 주 계획 대시보드 연결
 ```
@@ -197,9 +208,6 @@ PATCH /api/tasks/{task_id}
 남은 작업:
 
 ```text
-로드맵 수정/삭제
-로드맵 항목 상태 변경
-주간 계획 수정/삭제
 작업 상세 수정
 계획 승인/수정/거절 상태
 AI 제안 계획과 수동 계획 구분
@@ -332,7 +340,7 @@ AWS EC2 또는 Lightsail 배포 검토
 
 ```text
 1. Gemini quota 해소 후 실제 응답 성공 검증
-2. 로드맵/주간 계획 수정·삭제 보강
+2. 작업 상세 수정
 3. 공고/캘린더 상세 수정 UI
 4. 캘린더 월간/주간 그리드 UI
 ```

@@ -5,7 +5,16 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
-import { createWeeklyPlan, getWeeklyPlans, updateTask, type WeeklyPlan } from "@/lib/api";
+import {
+  createWeeklyPlan,
+  deleteWeeklyPlan,
+  getWeeklyPlans,
+  updateTask,
+  updateWeeklyPlan,
+  type WeeklyPlan
+} from "@/lib/api";
+
+const planStatuses = ["active", "done", "paused", "archived"];
 
 export default function WeeklyPlanPage() {
   const [plans, setPlans] = useState<WeeklyPlan[]>([]);
@@ -49,6 +58,26 @@ export default function WeeklyPlanPage() {
       await loadPlans();
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "작업 상태 저장에 실패했습니다.");
+    }
+  }
+
+  async function changePlanStatus(planId: number, nextStatus: string) {
+    try {
+      await updateWeeklyPlan(planId, { status: nextStatus });
+      await loadPlans();
+      setStatus("주간 계획 상태를 저장했습니다.");
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "주간 계획 상태 저장에 실패했습니다.");
+    }
+  }
+
+  async function removePlan(planId: number) {
+    try {
+      await deleteWeeklyPlan(planId);
+      await loadPlans();
+      setStatus("주간 계획을 삭제했습니다.");
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "주간 계획 삭제에 실패했습니다.");
     }
   }
 
@@ -96,7 +125,22 @@ export default function WeeklyPlanPage() {
                     {plan.week_start} ~ {plan.week_end}
                   </p>
                 </div>
-                <span className="text-sm text-muted-foreground">{plan.status}</span>
+                <div className="flex items-center gap-2">
+                  <select
+                    className="h-9 rounded-md border bg-background px-2 text-sm outline-none focus:border-primary"
+                    onChange={(event) => changePlanStatus(plan.id, event.target.value)}
+                    value={plan.status}
+                  >
+                    {planStatuses.map((item) => (
+                      <option key={item} value={item}>
+                        {item}
+                      </option>
+                    ))}
+                  </select>
+                  <Button onClick={() => removePlan(plan.id)} type="button" variant="secondary">
+                    삭제
+                  </Button>
+                </div>
               </div>
               <div className="grid gap-3 p-5">
                 {plan.tasks.map((task) => (

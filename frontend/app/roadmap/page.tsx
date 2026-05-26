@@ -5,7 +5,16 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
-import { createRoadmap, getRoadmaps, type Roadmap } from "@/lib/api";
+import {
+  createRoadmap,
+  deleteRoadmap,
+  getRoadmaps,
+  updateRoadmap,
+  updateRoadmapItem,
+  type Roadmap
+} from "@/lib/api";
+
+const statuses = ["todo", "active", "done", "paused", "archived"];
 
 export default function RoadmapPage() {
   const [roadmaps, setRoadmaps] = useState<Roadmap[]>([]);
@@ -40,6 +49,36 @@ export default function RoadmapPage() {
       setStatus("로드맵을 저장했습니다.");
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "로드맵 저장에 실패했습니다.");
+    }
+  }
+
+  async function changeRoadmapStatus(roadmapId: number, nextStatus: string) {
+    try {
+      await updateRoadmap(roadmapId, { status: nextStatus });
+      await loadRoadmaps();
+      setStatus("로드맵 상태를 저장했습니다.");
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "로드맵 상태 저장에 실패했습니다.");
+    }
+  }
+
+  async function removeRoadmap(roadmapId: number) {
+    try {
+      await deleteRoadmap(roadmapId);
+      await loadRoadmaps();
+      setStatus("로드맵을 삭제했습니다.");
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "로드맵 삭제에 실패했습니다.");
+    }
+  }
+
+  async function changeItemStatus(itemId: number, nextStatus: string) {
+    try {
+      await updateRoadmapItem(itemId, { status: nextStatus });
+      await loadRoadmaps();
+      setStatus("로드맵 항목 상태를 저장했습니다.");
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "로드맵 항목 상태 저장에 실패했습니다.");
     }
   }
 
@@ -87,13 +126,38 @@ export default function RoadmapPage() {
                     {roadmap.start_date ?? "-"} ~ {roadmap.end_date ?? "-"}
                   </p>
                 </div>
-                <span className="text-sm text-muted-foreground">{roadmap.status}</span>
+                <div className="flex items-center gap-2">
+                  <select
+                    className="h-9 rounded-md border bg-background px-2 text-sm outline-none focus:border-primary"
+                    onChange={(event) => changeRoadmapStatus(roadmap.id, event.target.value)}
+                    value={roadmap.status}
+                  >
+                    {statuses.map((item) => (
+                      <option key={item} value={item}>
+                        {item}
+                      </option>
+                    ))}
+                  </select>
+                  <Button onClick={() => removeRoadmap(roadmap.id)} type="button" variant="secondary">
+                    삭제
+                  </Button>
+                </div>
               </div>
               <div className="grid gap-3 p-5">
                 {roadmap.items.map((item) => (
                   <div key={item.id} className="flex items-center justify-between rounded-md border p-3">
                     <span className="text-sm font-medium">{item.title}</span>
-                    <span className="text-xs text-muted-foreground">{item.status}</span>
+                    <select
+                      className="h-8 rounded-md border bg-background px-2 text-xs outline-none focus:border-primary"
+                      onChange={(event) => changeItemStatus(item.id, event.target.value)}
+                      value={item.status}
+                    >
+                      {statuses.map((statusItem) => (
+                        <option key={statusItem} value={statusItem}>
+                          {statusItem}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 ))}
               </div>
