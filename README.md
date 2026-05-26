@@ -41,6 +41,13 @@ copy .env.example .env
 rtk docker compose up --build
 ```
 
+백그라운드 실행 후 API 흐름을 검증하려면:
+
+```bash
+rtk docker compose up --build -d
+rtk python -c "exec(open('scripts/smoke_api.py', encoding='utf-8').read())"
+```
+
 ## MVP 첫 흐름
 
 1. `/onboarding`에서 사전 정보를 입력한다.

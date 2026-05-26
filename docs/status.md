@@ -58,9 +58,11 @@ Phase 7: 포트폴리오 정리/배포 준비
 - 작업/공고 마감일 캘린더 동기화 API
 - `.ics` 내보내기 API
 - 캘린더 화면
+- Docker Compose 기반 PostgreSQL/백엔드/프론트엔드 전체 실행 검증
+- API 스모크 테스트 스크립트
 
 진행 중:
-- 온보딩/진단/트랙/로드맵/주간 계획/체크인/회고/AI 제안/공고/캘린더 흐름의 실제 DB 연동 검증
+- GeminiProvider 구현 준비
 
 아직 미구현:
 - Gemini Provider
@@ -117,18 +119,19 @@ rtk python -m compileall backend\app backend\alembic
 rtk python -c "import app.main"
 rtk npm run build
 rtk docker compose config --quiet
+rtk docker compose up --build -d
+rtk python -c "exec(open('scripts/smoke_api.py', encoding='utf-8').read())"
 ```
 
 주의:
 
 ```text
-Docker Desktop이 실행 중이 아니어서 전체 docker compose up 검증은 아직 미완료.
 프론트엔드 개발 서버는 로컬에서 실행 가능.
 ```
 
 ### Phase 2: 온보딩/진단/트랙
 
-상태: 주요 흐름 구현, 실제 DB 연동 검증 필요
+상태: 주요 흐름 구현, 실제 DB 연동 검증 완료
 
 구현됨:
 
@@ -163,8 +166,6 @@ TrackCompetencyScore 모델
 ```text
 트랙 우선순위 수정
 초기 점수 추정 로직 고도화
-실제 PostgreSQL 환경에서 온보딩 저장 검증
-실제 PostgreSQL 환경에서 점수 수정 검증
 ```
 
 ### Phase 3: 로드맵/주간 계획
@@ -256,7 +257,7 @@ AI 실패 시 수동 fallback
 
 ### Phase 6: 공고/캘린더
 
-상태: 주요 흐름 구현, 실제 DB 연동 검증 필요
+상태: 주요 흐름 구현, 실제 DB 연동 검증 완료
 
 구현됨:
 
@@ -288,12 +289,11 @@ GET /api/calendar-events.ics
 
 ### Phase 7: 포트폴리오 정리/배포 준비
 
-상태: 미구현
+상태: 초입 구현
 
 예정 작업:
 
 ```text
-Docker Compose 전체 실행 검증
 README 보강
 스크린샷 추가
 배포 문서 작성
@@ -302,20 +302,18 @@ AWS EC2 또는 Lightsail 배포 검토
 
 ## 4. 다음 추천 작업
 
-가장 가까운 다음 작업은 실제 DB 연동 검증 후 Phase 5 AI 코칭 기반을 시작하는 것이다.
+가장 가까운 다음 작업은 Phase 5 AI 코칭 기반을 실제 GeminiProvider로 확장하는 것이다.
 
 우선순위:
 
 ```text
-1. Docker Desktop 실행 후 docker compose up 검증
-2. 온보딩 저장 실제 동작 확인
-3. 역량 점수 수정 실제 동작 확인
-4. 로드맵/주간 계획 생성 실제 동작 확인
-5. 일일 체크인/주간 회고 실제 동작 확인
-6. AI 제안 생성/승인/거절/실제 데이터 반영 확인
-7. 공고 저장/분석 실제 동작 확인
-8. 캘린더 동기화와 .ics 내보내기 실제 동작 확인
-9. GeminiProvider 구현
+1. GeminiProvider 구현
+2. 구조화 JSON 응답 검증
+3. AI 실패 시 수동 fallback
+4. 공고 본문 기반 Gemini 분석 입력
+5. 사용자 수정 상태 edited 처리
+6. 주간 회고 제안 실제 회고 초안 반영
+7. 로드맵/주간 계획/공고/캘린더 수정·삭제 보강
 ```
 
 ## 5. 갱신 규칙

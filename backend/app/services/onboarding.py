@@ -1,6 +1,6 @@
 from datetime import date
 
-from sqlalchemy import delete, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
@@ -99,39 +99,44 @@ async def save_onboarding(db: AsyncSession, payload: OnboardingInput) -> tuple[i
     for field, value in payload.model_dump(exclude={"user"}).items():
         setattr(existing_profile, field, value)
 
-    await db.execute(delete(TrackCompetencyScore).where(TrackCompetencyScore.user_id == user_id))
-    await db.execute(delete(CareerTrack).where(CareerTrack.user_id == user_id))
-
     axes = await ensure_competency_axes(db)
     roles = payload.target_roles or DEFAULT_TRACKS
+    existing_tracks_result = await db.execute(
+        select(CareerTrack).where(CareerTrack.user_id == user_id).order_by(CareerTrack.priority, CareerTrack.id)
+    )
+    existing_tracks = list(existing_tracks_result.scalars())
+    tracks_by_name = {track.name: track for track in existing_tracks}
     tracks: list[CareerTrack] = []
     for index, role in enumerate(roles, start=1):
-        track = CareerTrack(
-            user_id=user_id,
-            name=role,
-            priority=index,
-            description=None,
-            target_start_date=_parse_date(payload.target_application_start_date),
-        )
-        db.add(track)
+        track = tracks_by_name.get(role)
+        if track is None:
+            track = CareerTrack(user_id=user_id, name=role, description=None)
+            db.add(track)
+        track.priority = index
+        track.target_start_date = _parse_date(payload.target_application_start_date)
         tracks.append(track)
 
     await db.flush()
 
     for track in tracks:
+        existing_scores_result = await db.execute(
+            select(TrackCompetencyScore).where(TrackCompetencyScore.track_id == track.id)
+        )
+        scores_by_axis = {score.axis_id: score for score in existing_scores_result.scalars()}
         for axis in axes:
-            score, evidence = estimate_initial_score(axis.name, payload) if track.priority == 1 else (0.0, None)
-            db.add(
-                TrackCompetencyScore(
+            initial_score, evidence = estimate_initial_score(axis.name, payload) if track.priority == 1 else (0.0, None)
+            score = scores_by_axis.get(axis.id)
+            if score is None:
+                score = TrackCompetencyScore(
                     user_id=user_id,
                     track_id=track.id,
                     axis_id=axis.id,
-                    score=score,
-                    evidence=evidence,
                     target_score=3,
-                    weight=FINANCE_IT_WEIGHTS.get(axis.name, 0.1) if track.priority == 1 else 0.1,
                 )
-            )
+                db.add(score)
+                score.score = initial_score
+                score.evidence = evidence
+            score.weight = FINANCE_IT_WEIGHTS.get(axis.name, 0.1) if track.priority == 1 else 0.1
 
     await db.commit()
     return user_id, len(tracks), len(axes)
