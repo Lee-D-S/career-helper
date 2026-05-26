@@ -45,6 +45,7 @@ def _roadmap_read(roadmap: Roadmap, items: list[RoadmapItem]) -> RoadmapRead:
         start_date=roadmap.start_date,
         end_date=roadmap.end_date,
         status=roadmap.status,
+        ai_plan_id=roadmap.ai_plan_id,
         items=[
             RoadmapItemRead(
                 id=item.id,
@@ -69,6 +70,7 @@ def _weekly_plan_read(plan: WeeklyPlan, tasks: list[Task]) -> WeeklyPlanRead:
         week_start=plan.week_start,
         week_end=plan.week_end,
         status=plan.status,
+        ai_plan_id=plan.ai_plan_id,
         tasks=[
             TaskRead(
                 id=task.id,

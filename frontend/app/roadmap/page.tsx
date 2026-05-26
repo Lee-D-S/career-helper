@@ -14,7 +14,8 @@ import {
   type Roadmap
 } from "@/lib/api";
 
-const statuses = ["todo", "active", "done", "paused", "archived"];
+const planStatuses = ["draft", "active", "rejected", "done", "archived"];
+const itemStatuses = ["todo", "active", "done", "paused", "archived"];
 
 export default function RoadmapPage() {
   const [roadmaps, setRoadmaps] = useState<Roadmap[]>([]);
@@ -41,7 +42,7 @@ export default function RoadmapPage() {
         title: String(form.get("title") ?? ""),
         start_date: String(form.get("startDate") ?? "") || null,
         end_date: String(form.get("endDate") ?? "") || null,
-        status: "active",
+        status: "draft",
         items
       });
       event.currentTarget.reset();
@@ -123,16 +124,22 @@ export default function RoadmapPage() {
                 <div>
                   <h2 className="text-lg font-semibold">{roadmap.title}</h2>
                   <p className="text-sm text-muted-foreground">
-                    {roadmap.start_date ?? "-"} ~ {roadmap.end_date ?? "-"}
+                    {roadmap.start_date ?? "-"} ~ {roadmap.end_date ?? "-"} · {roadmap.ai_plan_id ? `AI #${roadmap.ai_plan_id}` : "수동"}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
+                  <Button onClick={() => changeRoadmapStatus(roadmap.id, "active")} type="button">
+                    승인
+                  </Button>
+                  <Button onClick={() => changeRoadmapStatus(roadmap.id, "rejected")} type="button" variant="secondary">
+                    거절
+                  </Button>
                   <select
                     className="h-9 rounded-md border bg-background px-2 text-sm outline-none focus:border-primary"
                     onChange={(event) => changeRoadmapStatus(roadmap.id, event.target.value)}
                     value={roadmap.status}
                   >
-                    {statuses.map((item) => (
+                    {planStatuses.map((item) => (
                       <option key={item} value={item}>
                         {item}
                       </option>
@@ -152,7 +159,7 @@ export default function RoadmapPage() {
                       onChange={(event) => changeItemStatus(item.id, event.target.value)}
                       value={item.status}
                     >
-                      {statuses.map((statusItem) => (
+                      {itemStatuses.map((statusItem) => (
                         <option key={statusItem} value={statusItem}>
                           {statusItem}
                         </option>

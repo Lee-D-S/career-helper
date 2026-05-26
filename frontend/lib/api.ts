@@ -43,6 +43,7 @@ export type Roadmap = {
   start_date?: string | null;
   end_date?: string | null;
   status: string;
+  ai_plan_id?: number | null;
   items: RoadmapItem[];
 };
 
@@ -66,6 +67,7 @@ export type WeeklyPlan = {
   week_start: string;
   week_end: string;
   status: string;
+  ai_plan_id?: number | null;
   tasks: Task[];
 };
 

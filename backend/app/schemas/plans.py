@@ -17,7 +17,7 @@ class RoadmapCreate(BaseModel):
     track_id: int | None = None
     start_date: date | None = None
     end_date: date | None = None
-    status: str = "active"
+    status: str = "draft"
     items: list[RoadmapItemCreate] = Field(default_factory=list)
 
 
@@ -33,6 +33,7 @@ class RoadmapRead(BaseModel):
     start_date: date | None
     end_date: date | None
     status: str
+    ai_plan_id: int | None = None
     items: list[RoadmapItemRead]
 
 
@@ -68,7 +69,7 @@ class WeeklyPlanCreate(BaseModel):
     track_id: int | None = None
     week_start: date
     week_end: date
-    status: str = "active"
+    status: str = "draft"
     tasks: list[TaskCreate] = Field(default_factory=list)
 
 
@@ -85,6 +86,7 @@ class WeeklyPlanRead(BaseModel):
     week_start: date
     week_end: date
     status: str
+    ai_plan_id: int | None = None
     tasks: list[TaskRead]
 
 

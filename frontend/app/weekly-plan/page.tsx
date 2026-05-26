@@ -14,7 +14,7 @@ import {
   type WeeklyPlan
 } from "@/lib/api";
 
-const planStatuses = ["active", "done", "paused", "archived"];
+const planStatuses = ["draft", "active", "rejected", "done", "archived"];
 
 export default function WeeklyPlanPage() {
   const [plans, setPlans] = useState<WeeklyPlan[]>([]);
@@ -41,7 +41,7 @@ export default function WeeklyPlanPage() {
         title: String(form.get("title") ?? ""),
         week_start: String(form.get("weekStart") ?? ""),
         week_end: String(form.get("weekEnd") ?? ""),
-        status: "active",
+        status: "draft",
         tasks
       });
       event.currentTarget.reset();
@@ -143,10 +143,16 @@ export default function WeeklyPlanPage() {
                 <div>
                   <h2 className="text-lg font-semibold">{plan.title}</h2>
                   <p className="text-sm text-muted-foreground">
-                    {plan.week_start} ~ {plan.week_end}
+                    {plan.week_start} ~ {plan.week_end} · {plan.ai_plan_id ? `AI #${plan.ai_plan_id}` : "수동"}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
+                  <Button onClick={() => changePlanStatus(plan.id, "active")} type="button">
+                    승인
+                  </Button>
+                  <Button onClick={() => changePlanStatus(plan.id, "rejected")} type="button" variant="secondary">
+                    거절
+                  </Button>
                   <select
                     className="h-9 rounded-md border bg-background px-2 text-sm outline-none focus:border-primary"
                     onChange={(event) => changePlanStatus(plan.id, event.target.value)}

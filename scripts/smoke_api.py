@@ -61,6 +61,7 @@ def main() -> None:
             "items": [{"title": "Portfolio cleanup", "priority": 1, "status": "todo"}],
         },
     )
+    roadmap_approved = request_json("PATCH", f"/roadmaps/{roadmap['id']}", {"status": "active"})
     roadmap_updated = request_json("PATCH", f"/roadmaps/{roadmap['id']}", {"status": "done"})
     roadmap_item_updated = request_json("PATCH", f"/roadmap-items/{roadmap['items'][0]['id']}", {"status": "done"})
     roadmap_delete_target = request_json(
@@ -89,6 +90,7 @@ def main() -> None:
             ],
         },
     )
+    weekly_rejected = request_json("PATCH", f"/weekly-plans/{weekly['id']}", {"status": "rejected"})
     weekly_updated = request_json("PATCH", f"/weekly-plans/{weekly['id']}", {"status": "done"})
     weekly_delete_target = request_json(
         "POST",
@@ -211,11 +213,13 @@ def main() -> None:
         "dashboard_track": dashboard["target_track"],
         "score_updated": score["id"],
         "roadmap": (
-            f"id={roadmap['id']},status={roadmap_updated['status']},"
+            f"id={roadmap['id']},source={'ai' if roadmap_updated.get('ai_plan_id') else 'manual'},"
+            f"approved={roadmap_approved['status']},status={roadmap_updated['status']},"
             f"itemStatus={roadmap_item_updated['status']},deleteStatus={roadmap_delete_status}"
         ),
         "weekly_plan": (
-            f"id={weekly['id']},status={weekly_updated['status']},"
+            f"id={weekly['id']},source={'ai' if weekly_updated.get('ai_plan_id') else 'manual'},"
+            f"rejected={weekly_rejected['status']},status={weekly_updated['status']},"
             f"tasks={len(weekly['tasks'])},deleteStatus={weekly_delete_status}"
         ),
         "task": f"title={task['title']},category={task['category']},status={task['status']},actual={task['actual_hours']}",
