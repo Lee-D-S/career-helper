@@ -54,6 +54,7 @@ Phase 7: 포트폴리오 정리/배포 준비
 - accepted AI 로드맵 제안을 실제 Roadmap/RoadmapItem으로 반영
 - accepted AI 주간 계획 제안을 실제 WeeklyPlan/Task로 반영
 - accepted AI 주간 회고 제안을 실제 WeeklyReview 초안으로 반영
+- Gemini 실제 키 검증 스크립트
 - 공고 저장/조회 API
 - AI Provider 기반 공고 분석 API
 - 공고 저장/분석 화면
@@ -68,7 +69,7 @@ Phase 7: 포트폴리오 정리/배포 준비
 - 없음
 
 아직 미구현:
-- Gemini 실제 키 검증
+- Gemini quota 해소 후 실제 응답 성공 검증
 ```
 
 ## 3. Phase별 상세 상태
@@ -125,6 +126,7 @@ rtk npm run build
 rtk docker compose config --quiet
 rtk docker compose up --build -d
 rtk python -c "exec(open('scripts/smoke_api.py', encoding='utf-8').read())"
+rtk python scripts/verify_gemini.py
 ```
 
 주의:
@@ -253,12 +255,20 @@ AI 제안 JSON 수정 저장
 승인한 로드맵 제안 실제 로드맵 반영
 승인한 주간 계획 제안 실제 주간 계획 반영
 승인한 주간 회고 제안 실제 회고 초안 반영
+Gemini 실제 키 검증 스크립트
 ```
 
 남은 작업:
 
 ```text
-Gemini 실제 키 검증
+Gemini quota 해소 후 실제 응답 성공 검증
+```
+
+주의:
+
+```text
+Gemini 실제 호출은 Google API까지 도달했으나 gemini-2.0-flash 무료 티어 quota 0으로 HTTP 429 RESOURCE_EXHAUSTED가 반환됨.
+키/엔드포인트 형식 검증은 통과했고, 실제 JSON 응답 성공 검증은 quota 해소 후 재시도 필요.
 ```
 
 ### Phase 6: 공고/캘린더
@@ -309,12 +319,12 @@ AWS EC2 또는 Lightsail 배포 검토
 
 ## 4. 다음 추천 작업
 
-가장 가까운 다음 작업은 Gemini 실제 키로 AI 호출을 검증하는 것이다.
+가장 가까운 다음 작업은 Gemini quota 해소 후 실제 응답 성공 검증 또는 CRUD 보강이다.
 
 우선순위:
 
 ```text
-1. Gemini 실제 키 검증
+1. Gemini quota 해소 후 실제 응답 성공 검증
 2. 로드맵/주간 계획/공고/캘린더 수정·삭제 보강
 3. 캘린더 월간/주간 그리드 UI
 ```

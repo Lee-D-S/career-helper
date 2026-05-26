@@ -56,6 +56,12 @@ rtk docker compose up --build -d
 rtk python -c "exec(open('scripts/smoke_api.py', encoding='utf-8').read())"
 ```
 
+Gemini 키와 모델 설정을 실제 API로 검증하려면:
+
+```bash
+rtk python scripts/verify_gemini.py
+```
+
 ## MVP 첫 흐름
 
 1. `/onboarding`에서 사전 정보를 입력한다.
